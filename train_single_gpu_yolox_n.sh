@@ -3,8 +3,8 @@ python3 train.py \
         --cuda \
         -d voc \
         --root /home/david/dataset/detect/VOC \
-        -m yolox_x \
-        -bs 4 \
+        -m yolox_n \
+        -bs 16 \
         -size 640 \
         --wp_epoch 3 \
         --max_epoch 300 \
