@@ -82,20 +82,13 @@ class YoloDetection(data.Dataset):
 
     Arguments:
         root (string): filepath to VOCdevkit folder.
-        image_set (string): imageset to use (eg. 'train', 'val', 'test')
         transform (callable, optional): transformation to perform on the
             input image
-        target_transform (callable, optional): transformation to perform on the
-            target `annotation`
-            (eg: take in caption string, return tensor of word indices)
-        dataset_name (string, optional): which dataset to load
-            (default: 'VOC2007')
     """
 
     def __init__(self, 
                  img_size=640,
                  data_dir=None,
-                 #image_sets=[('CCPD'), ('CRPD_TRAIN')],
                  trans_config=None,
                  transform=None,
                  is_train=False,
@@ -112,11 +105,9 @@ class YoloDetection(data.Dataset):
         self.load_cache = load_cache
         txt_list = []
         image_list = []
-        for parent, dirnames, filenames in os.walk(self.root, followlinks=True):
+        for (parent, dirnames, filenames) in os.walk(self.root, followlinks=True):
             for filename in filenames:
                 file_name, file_ext = os.path.splitext(filename)
-                #print("不带后缀的文件名: {}".format(file_name))
-                #print("文件类型（即文件后缀）: {}".format(file_ext))
                 if file_ext == ".jpg":
                     image_list.append( os.path.join(parent, file_name) )
                     #print( os.path.join(parent, file_name) )
@@ -230,11 +221,6 @@ class YoloDetection(data.Dataset):
                     bndbox[3] = cy + h//2
                     bndbox[4] = int(labe_list[0])
                 anno.append(bndbox)
-            """
-            anno = ET.parse(self._annopath % img_id).getroot()
-            if self.target_transform is not None:
-                anno = self.target_transform(anno)
-            """
             # guard against no boxes via resizing
             anno = np.array(anno).reshape(-1, 5)
             target = {
@@ -308,7 +294,6 @@ class YoloDetection(data.Dataset):
         Return:
             PIL img
         '''
-        #img_id = self.ids[index]
         return cv2.imread(self.ids[index] + '.jpg', cv2.IMREAD_COLOR)
 
 
@@ -335,7 +320,7 @@ if __name__ == "__main__":
     import argparse
     from build import build_transform
     
-    parser = argparse.ArgumentParser(description='VOC-Dataset')
+    parser = argparse.ArgumentParser(description='YOLO-Dataset')
 
     # opt
     parser.add_argument('--root', default='/home/david/dataset/lpd_lpr/detect_plate_datasets/train_data',
