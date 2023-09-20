@@ -1,16 +1,17 @@
-"""VOC Dataset Classes
+"""YOLO Dataset Classes
 
 Original author: Francisco Massa
 https://github.com/fmassa/vision/blob/voc_dataset/torchvision/datasets/voc.py
 
 Updated by: Ellis Brown, Max deGroot
 """
+import os
 import os.path as osp
 import random
 import torch.utils.data as data
 import cv2
 import numpy as np
-import xml.etree.ElementTree as ET
+#import xml.etree.ElementTree as ET
 
 try:
     from .data_augment.yolov5_augment import yolov5_mosaic_augment, yolov5_mixup_augment, yolox_mixup_augment
@@ -18,21 +19,17 @@ except:
     from data_augment.yolov5_augment import yolov5_mosaic_augment, yolov5_mixup_augment, yolox_mixup_augment
 
 
-
-VOC_CLASSES = (  # always index 0
-    'aeroplane', 'bicycle', 'bird', 'boat',
-    'bottle', 'bus', 'car', 'cat', 'chair',
-    'cow', 'diningtable', 'dog', 'horse',
-    'motorbike', 'person', 'pottedplant',
-    'sheep', 'sofa', 'train', 'tvmonitor')
+# s: single layer plate;    d: double layer plate
+PLATE_CLASSES = (  # always index 0
+    's', 'd')
 
 
-class VOCAnnotationTransform(object):
-    """Transforms a VOC annotation into a Tensor of bbox coords and label index
+class YOLOAnnotationTransform(object):
+    """Transforms a Plate annotation into a Tensor of bbox coords and label index
     Initilized with a dictionary lookup of classnames to indexes
     Arguments:
         class_to_ind (dict, optional): dictionary lookup of classnames -> indexes
-            (default: alphabetic indexing of VOC's 20 classes)
+            (default: alphabetic indexing of Plate's 20 classes)
         keep_difficult (bool, optional): keep difficult instances or not
             (default: False)
         height (int): height
@@ -41,7 +38,7 @@ class VOCAnnotationTransform(object):
 
     def __init__(self, class_to_ind=None, keep_difficult=False):
         self.class_to_ind = class_to_ind or dict(
-            zip(VOC_CLASSES, range(len(VOC_CLASSES))))
+            zip(PLATE_CLASSES, range(len(PLATE_CLASSES))))
         self.keep_difficult = keep_difficult
 
     def __call__(self, target):
@@ -62,7 +59,7 @@ class VOCAnnotationTransform(object):
 
             pts = ['xmin', 'ymin', 'xmax', 'ymax']
             bndbox = []
-            for i, pt in enumerate(pts):
+            for (i, pt) in enumerate(pts):
                 cur_pt = int(bbox.find(pt).text) - 1
                 # scale height or width
                 cur_pt = cur_pt if i % 2 == 0 else cur_pt
@@ -74,10 +71,14 @@ class VOCAnnotationTransform(object):
         return res  # [[x1, y1, x2, y2, label_ind], ... ]
 
 
-class VOCDetection(data.Dataset):
-    """VOC Detection Dataset Object
+class YoloDetection(data.Dataset):
+    """Yolo Detection Dataset Object
 
     input is image, target is annotation
+
+    dataset dir:
+        /train_data/CCPD/0028-2_0-308&442_391&471-391&467_309&471_308&446_390&442-0_0_8_25_9_24_26-85-17.txt
+        /train_data/CCPD/0028-2_0-308&442_391&471-391&467_309&471_308&446_390&442-0_0_8_25_9_24_26-85-17.jpg
 
     Arguments:
         root (string): filepath to VOCdevkit folder.
@@ -94,7 +95,7 @@ class VOCDetection(data.Dataset):
     def __init__(self, 
                  img_size=640,
                  data_dir=None,
-                 image_sets=[('2007', 'trainval'), ('2012', 'trainval')],
+                 #image_sets=[('CCPD'), ('CRPD_TRAIN')],
                  trans_config=None,
                  transform=None,
                  is_train=False,
@@ -102,18 +103,33 @@ class VOCDetection(data.Dataset):
                  ):
         self.root = data_dir
         self.img_size = img_size
-        self.image_set = image_sets
-        self.target_transform = VOCAnnotationTransform()
-        self._annopath = osp.join('%s', 'Annotations', '%s.xml')
-        self._imgpath = osp.join('%s', 'JPEGImages', '%s.jpg')
+        #self.image_set = image_sets
+        #self.target_transform = YOLOAnnotationTransform()
+        #self._annopath = osp.join('%s', '%s.xml')
+        #self._imgpath = osp.join('%s', '%s.jpg')
         self.ids = list()
         self.is_train = is_train
         self.load_cache = load_cache
-        for (year, name) in image_sets:
-            rootpath = osp.join(self.root, 'VOC' + year)
-            for line in open(osp.join(rootpath, 'ImageSets', 'Main', name + '.txt')):
-                self.ids.append((rootpath, line.strip()))
-
+        txt_list = []
+        image_list = []
+        for parent, dirnames, filenames in os.walk(self.root, followlinks=True):
+            for filename in filenames:
+                file_name, file_ext = os.path.splitext(filename)
+                #print("不带后缀的文件名: {}".format(file_name))
+                #print("文件类型（即文件后缀）: {}".format(file_ext))
+                if file_ext == ".jpg":
+                    image_list.append( os.path.join(parent, file_name) )
+                    #print( os.path.join(parent, file_name) )
+                elif file_ext == ".txt":
+                    txt_list.append( os.path.join(parent, file_name) )
+                    #print( os.path.join(parent, file_name) )
+        for one_image in image_list:
+            if one_image not in txt_list:
+                print('There is no txt file for image file: {}'.format(one_image))
+                continue
+            self.ids.append( one_image )
+        del txt_list
+        del image_list
         # augmentation
         self.transform = transform
         self.mosaic_prob = trans_config['mosaic_prob'] if trans_config else 0.0
@@ -123,7 +139,6 @@ class VOCDetection(data.Dataset):
         print('use Mosaic Augmentation: {}'.format(self.mosaic_prob))
         print('use Mixup Augmentation: {}'.format(self.mixup_prob))
         print('==============================')
-
         # load cache data
         if load_cache:
             self._load_cache()
@@ -149,9 +164,8 @@ class VOCDetection(data.Dataset):
             if i % 5000 == 0:
                 print("[{} / {}]".format(i, dataset_size))
             # load an image
-            image, image_id = self.pull_image(i)
+            image = self.pull_image(i)
             orig_h, orig_w, _ = image.shape
-
             # resize image
             r = self.img_size / max(orig_h, orig_w)
             if r != 1: 
@@ -160,16 +174,31 @@ class VOCDetection(data.Dataset):
                 image = cv2.resize(image, new_size, interpolation=interp)
             img_h, img_w = image.shape[:2]
             self.cached_images.append(image)
-
             # load target cache
-            anno = ET.parse(self._annopath % image_id).getroot()
-            anno = self.target_transform(anno)
+            anno = []
+            for line in open(self.ids[i] + '.txt'):
+                bndbox = [0, 0, 0, 0, 0]
+                labe_list = line.split()
+                if len(labe_list) < 5:
+                    print('Data {} not valid'.format(line))
+                else:
+                    cx = float(labe_list[1])*orig_w
+                    cy = float(labe_list[2])*orig_h
+                    w = float(labe_list[3])*orig_w
+                    h = float(labe_list[4])*orig_h
+                    bndbox[0] = cx - w//2
+                    bndbox[1] = cy - h//2
+                    bndbox[2] = cx + w//2
+                    bndbox[3] = cy + h//2
+                    bndbox[4] = int(labe_list[0])
+                anno.append(bndbox)
             anno = np.array(anno).reshape(-1, 5)
             boxes = anno[:, :4]
             labels = anno[:, 4]
             boxes[:, [0, 2]] = boxes[:, [0, 2]] / orig_w * img_w
             boxes[:, [1, 3]] = boxes[:, [1, 3]] / orig_h * img_h
             self.cached_targets.append({"boxes": boxes, "labels": labels})
+        return
         
 
     def load_image_target(self, index):
@@ -181,14 +210,31 @@ class VOCDetection(data.Dataset):
         else:
             # load an image
             img_id = self.ids[index]
-            image = cv2.imread(self._imgpath % img_id)
+            image = cv2.imread(self.ids[index] + '.jpg')
             height, width, channels = image.shape
-
             # laod an annotation
+            anno = []
+            for line in open(self.ids[index] + '.txt'):
+                bndbox = [0, 0, 0, 0, 0]
+                labe_list = line.split()
+                if len(labe_list) < 5:
+                    print('Data {} not valid'.format(line))
+                else:
+                    cx = float(labe_list[1])*width
+                    cy = float(labe_list[2])*height
+                    w = float(labe_list[3])*width
+                    h = float(labe_list[4])*height
+                    bndbox[0] = cx - w//2
+                    bndbox[1] = cy - h//2
+                    bndbox[2] = cx + w//2
+                    bndbox[3] = cy + h//2
+                    bndbox[4] = int(labe_list[0])
+                anno.append(bndbox)
+            """
             anno = ET.parse(self._annopath % img_id).getroot()
             if self.target_transform is not None:
                 anno = self.target_transform(anno)
-
+            """
             # guard against no boxes via resizing
             anno = np.array(anno).reshape(-1, 5)
             target = {
@@ -196,7 +242,6 @@ class VOCDetection(data.Dataset):
                 "labels": anno[:, 4],
                 "orig_size": [height, width]
             }
-        
         return image, target
 
 
@@ -206,7 +251,6 @@ class VOCDetection(data.Dataset):
         id1 = index
         id2, id3, id4 = random.sample(index_list, 3)
         indexs = [id1, id2, id3, id4]
-
         # load images and targets
         image_list = []
         target_list = []
@@ -214,12 +258,10 @@ class VOCDetection(data.Dataset):
             img_i, target_i = self.load_image_target(index)
             image_list.append(img_i)
             target_list.append(target_i)
-
         # Mosaic
         if self.trans_config['mosaic_type'] == 'yolov5_mosaic':
             image, target = yolov5_mosaic_augment(
                 image_list, target_list, self.img_size, self.trans_config, self.is_train)
-
         return image, target
 
 
@@ -249,14 +291,11 @@ class VOCDetection(data.Dataset):
             mosaic = False
             # load an image and target
             image, target = self.load_image_target(index)
-
         # MixUp
         if random.random() < self.mixup_prob:
             image, target = self.load_mixup(image, target)
-
         # augment
         image, target, deltas = self.transform(image, target, mosaic)
-
         return image, target, deltas
 
 
@@ -269,8 +308,8 @@ class VOCDetection(data.Dataset):
         Return:
             PIL img
         '''
-        img_id = self.ids[index]
-        return cv2.imread(self._imgpath % img_id, cv2.IMREAD_COLOR), img_id
+        #img_id = self.ids[index]
+        return cv2.imread(self.ids[index] + '.jpg', cv2.IMREAD_COLOR)
 
 
     def pull_anno(self, index):
@@ -289,6 +328,9 @@ class VOCDetection(data.Dataset):
         return img_id[1], gt
 
 
+"""
+    python3 plate.py --load_cache;sz image/*
+"""
 if __name__ == "__main__":
     import argparse
     from build import build_transform
@@ -296,7 +338,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='VOC-Dataset')
 
     # opt
-    parser.add_argument('--root', default='/Users/liuhaoran/Desktop/python_work/object-detection/dataset/VOCdevkit/',
+    parser.add_argument('--root', default='/home/david/dataset/lpd_lpr/detect_plate_datasets/train_data',
                         help='data root')
     parser.add_argument('-size', '--img_size', default=640, type=int,
                         help='input image size.')
@@ -331,7 +373,7 @@ if __name__ == "__main__":
     }
     transform, trans_cfg = build_transform(args, trans_config, 32, args.is_train)
 
-    dataset = VOCDetection(
+    dataset = YoloDetection(
         img_size=args.img_size,
         data_dir=args.root,
         trans_config=trans_config,
@@ -346,7 +388,7 @@ if __name__ == "__main__":
                      np.random.randint(255)) for _ in range(20)]
     print('Data length: ', len(dataset))
 
-    for i in range(1000):
+    for i in range(20):
         image, target, deltas = dataset.pull_item(i)
         # to numpy
         image = image.permute(1, 2, 0).numpy()
@@ -364,10 +406,12 @@ if __name__ == "__main__":
                 cls_id = int(label)
                 color = class_colors[cls_id]
                 # class name
-                label = VOC_CLASSES[cls_id]
+                label = PLATE_CLASSES[cls_id]
                 image = cv2.rectangle(image, (int(x1), int(y1)), (int(x2), int(y2)), (0,0,255), 2)
                 # put the test on the bbox
                 cv2.putText(image, label, (int(x1), int(y1 - 5)), 0, 0.5, color, 1, lineType=cv2.LINE_AA)
-        cv2.imshow('gt', image)
-        # cv2.imwrite(str(i)+'.jpg', img)
-        cv2.waitKey(0)
+        #cv2.imshow('gt', image)
+        save_image = './images/' + str(i).zfill(4) + '.jpg'
+        print('Save file: {}'.format(save_image))
+        cv2.imwrite(save_image, image)
+        #cv2.waitKey(0)
