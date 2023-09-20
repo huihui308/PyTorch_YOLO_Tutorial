@@ -470,6 +470,7 @@ class YoloxTrainer(object):
             self.train_one_epoch(model)
 
             # eval one epoch
+            print("Start evaluate")
             if self.heavy_eval:
                 model_eval = model.module if self.args.distributed else model
                 self.eval(model_eval)
@@ -486,8 +487,8 @@ class YoloxTrainer(object):
         if distributed_utils.is_main_process():
             # check evaluator
             if self.evaluator is None:
-                print('No evaluator ... save model and go on training.')
-                print('Saving state, epoch: {}'.format(self.epoch + 1))
+                print('No evaluator ... save model and go on training.', flush=True)
+                print('Saving state, epoch: {}'.format(self.epoch + 1), flush=True)
                 weight_name = '{}_no_eval.pth'.format(self.args.model)
                 checkpoint_path = os.path.join(self.path_to_save, weight_name)
                 torch.save({'model': model_eval.state_dict(),
@@ -497,7 +498,7 @@ class YoloxTrainer(object):
                             'args': self.args}, 
                             checkpoint_path)               
             else:
-                print('eval ...')
+                print('eval ...', flush=True)
                 # set eval mode
                 model_eval.trainable = False
                 model_eval.eval()
@@ -614,8 +615,10 @@ class YoloxTrainer(object):
                 t0 = time.time()
         
         # LR Schedule
+        print("LR Schedule")
         if not self.second_stage:
             self.lr_scheduler.step()
+        print("End")
         
 
     def check_second_stage(self):

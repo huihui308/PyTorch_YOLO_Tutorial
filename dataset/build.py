@@ -3,6 +3,7 @@ import os
 try:
     from .voc import VOCDetection
     from .coco import COCODataset
+    from .plate import PlateDetection
     from .ourdataset import OurDataset
     from .data_augment.ssd_augment import SSDAugmentation, SSDBaseTransform
     from .data_augment.yolov5_augment import YOLOv5Augmentation, YOLOv5BaseTransform
@@ -10,6 +11,7 @@ try:
 except:
     from voc import VOCDetection
     from coco import COCODataset
+    from plate import PlateDetection
     from ourdataset import OurDataset
     from data_augment.ssd_augment import SSDAugmentation, SSDBaseTransform
     from data_augment.yolov5_augment import YOLOv5Augmentation, YOLOv5BaseTransform
@@ -45,6 +47,16 @@ def build_dataset(args, data_cfg, trans_config, transform, is_train=False):
             img_size=args.img_size,
             data_dir=data_dir,
             image_set='train2017' if is_train else 'val2017',
+            transform=transform,
+            trans_config=trans_config,
+            load_cache=args.load_cache
+            )
+    ## Plate dataset
+    elif args.dataset == 'plate':
+        dataset = PlateDetection(
+            data_dir=data_dir,
+            img_size=args.img_size,
+            image_set='train' if is_train else 'val',
             transform=transform,
             trans_config=trans_config,
             load_cache=args.load_cache

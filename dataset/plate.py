@@ -73,6 +73,7 @@ class PlateDetection(Dataset):
         print('Json file: {}'.format(self.json_file))
         print('use Mosaic Augmentation: {}'.format(self.mosaic_prob))
         print('use Mixup Augmentation: {}'.format(self.mixup_prob))
+        print('Ids size: {}'.format(len(self.ids)))
         print('==============================')
 
         # load cache data

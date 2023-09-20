@@ -36,6 +36,13 @@ dataset_cfg = {
                         'clock', 'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush'),
     },
 
+    'plate':{
+        'data_name': '',
+        'num_classes': 2,
+        'class_indexs': None,
+        'class_names': ('s', 'd', ),
+    },
+
     'ourdataset':{
         'data_name': 'AnimalDataset',
         'num_classes': 9,
