@@ -1,9 +1,6 @@
 """Plate Dataset Classes
 
-Original author: Francisco Massa
-https://github.com/fmassa/vision/blob/voc_dataset/torchvision/datasets/voc.py
-
-Updated by: Ellis Brown, Max deGroot
+Updated by: David
 """
 import os
 import cv2
@@ -24,7 +21,7 @@ except:
     from data_augment.yolov5_augment import yolov5_mosaic_augment, yolov5_mixup_augment, yolox_mixup_augment
 
 
-# s: single layer plate;    d: double layer plate
+# s: single layer plate;    d: double layer plate;
 PLATE_CLASSES = (  # always index 0
     's', 'd')
 
@@ -95,10 +92,10 @@ class PlateDetection(Dataset):
         self.cached_targets = []
         dataset_size = len(self.ids)
 
-        print('loading data into memory ...')
+        print('loading data into memory ...', flush=True)
         for i in range(dataset_size):
             if i % 5000 == 0:
-                print("[{} / {}]".format(i, dataset_size))
+                print("[{} / {}]".format(i, dataset_size), flush=True)
             # load an image
             image, image_id = self.pull_image(i)
             orig_h, orig_w, _ = image.shape

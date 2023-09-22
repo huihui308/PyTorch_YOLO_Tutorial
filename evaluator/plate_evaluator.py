@@ -55,7 +55,7 @@ class PlateDatasetEvaluator():
         ids = []
         data_dict = []
         num_images = len(self.dataset)
-        print('total number of images: %d' % (num_images))
+        print('total number of images: %d' % (num_images), flush=True)
 
         # start testing
         for index in range(num_images): # all the data in val2017
@@ -98,7 +98,7 @@ class PlateDatasetEvaluator():
 
         # Evaluate the Dt (detection) json comparing with the ground truth
         if len(data_dict) > 0:
-            print('evaluating ......')
+            print('evaluating ......', flush=True)
             cocoGt = self.dataset.coco
             # workaround: temporarily write data to json file because pycocotools can't process dict in py36.
             _, tmp = tempfile.mkstemp()

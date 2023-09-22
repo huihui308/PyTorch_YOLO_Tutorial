@@ -441,7 +441,11 @@ class YoloxTrainer(object):
             if epoch >= (self.args.max_epoch - self.second_stage_epoch - 1) and not self.second_stage:
                 self.check_second_stage()
                 # save model of the last mosaic epoch
-                weight_name = '{}_last_mosaic_epoch.pth'.format(self.args.model)
+                weight_name = '{}_bs{}_last_mosaic_epoch_{}.pth'.format(
+                        self.args.model, 
+                        self.args.batch_size, 
+                        time.strftime("%Y-%m-%d_%H-%M-%S", time.localtime())
+                )
                 checkpoint_path = os.path.join(self.path_to_save, weight_name)
                 print('Saving state of the last Mosaic epoch-{}.'.format(self.epoch + 1))
                 torch.save({'model': model.state_dict(),
@@ -455,7 +459,11 @@ class YoloxTrainer(object):
             if epoch >= (self.args.max_epoch - self.third_stage_epoch - 1) and not self.third_stage:
                 self.check_third_stage()
                 # save model of the last mosaic epoch
-                weight_name = '{}_last_weak_augment_epoch.pth'.format(self.args.model)
+                weight_name = '{}_bs{}_last_weak_augment_epoch_{}.pth'.format(
+                        self.args.model, 
+                        self.args.batch_size, 
+                        time.strftime("%Y-%m-%d_%H-%M-%S", time.localtime())
+                )
                 checkpoint_path = os.path.join(self.path_to_save, weight_name)
                 print('Saving state of the last weak augment epoch-{}.'.format(self.epoch + 1))
                 torch.save({'model': model.state_dict(),
@@ -470,7 +478,6 @@ class YoloxTrainer(object):
             self.train_one_epoch(model)
 
             # eval one epoch
-            print("Start evaluate")
             if self.heavy_eval:
                 model_eval = model.module if self.args.distributed else model
                 self.eval(model_eval)
@@ -489,7 +496,11 @@ class YoloxTrainer(object):
             if self.evaluator is None:
                 print('No evaluator ... save model and go on training.', flush=True)
                 print('Saving state, epoch: {}'.format(self.epoch + 1), flush=True)
-                weight_name = '{}_no_eval.pth'.format(self.args.model)
+                weight_name = '{}_bs{}_no_eval_{}.pth'.format(
+                        self.args.model, 
+                        self.args.batch_size, 
+                        time.strftime("%Y-%m-%d_%H-%M-%S", time.localtime())
+                )
                 checkpoint_path = os.path.join(self.path_to_save, weight_name)
                 torch.save({'model': model_eval.state_dict(),
                             'mAP': -1.,
@@ -514,7 +525,11 @@ class YoloxTrainer(object):
                     self.best_map = cur_map
                     # save model
                     print('Saving state, epoch:', self.epoch + 1)
-                    weight_name = '{}_best.pth'.format(self.args.model)
+                    weight_name = '{}_bs{}_best_{}.pth'.format(
+                            self.args.model, 
+                            self.args.batch_size, 
+                            time.strftime("%Y-%m-%d_%H-%M-%S", time.localtime())
+                    )
                     checkpoint_path = os.path.join(self.path_to_save, weight_name)
                     torch.save({'model': model_eval.state_dict(),
                                 'mAP': round(self.best_map*100, 1),
@@ -615,10 +630,8 @@ class YoloxTrainer(object):
                 t0 = time.time()
         
         # LR Schedule
-        print("LR Schedule")
         if not self.second_stage:
             self.lr_scheduler.step()
-        print("End")
         
 
     def check_second_stage(self):
@@ -807,7 +820,11 @@ class RTCTrainer(object):
             if epoch >= (self.args.max_epoch - self.second_stage_epoch - 1) and not self.second_stage:
                 self.check_second_stage()
                 # save model of the last mosaic epoch
-                weight_name = '{}_last_mosaic_epoch.pth'.format(self.args.model)
+                weight_name = '{}_bs{}_last_mosaic_epoch_{}.pth'.format(
+                        self.args.model, 
+                        self.args.batch_size, 
+                        time.strftime("%Y-%m-%d_%H-%M-%S", time.localtime())
+                )
                 checkpoint_path = os.path.join(self.path_to_save, weight_name)
                 print('Saving state of the last Mosaic epoch-{}.'.format(self.epoch + 1))
                 torch.save({'model': model.state_dict(),
@@ -821,7 +838,11 @@ class RTCTrainer(object):
             if epoch >= (self.args.max_epoch - self.third_stage_epoch - 1) and not self.third_stage:
                 self.check_third_stage()
                 # save model of the last mosaic epoch
-                weight_name = '{}_last_weak_augment_epoch.pth'.format(self.args.model)
+                weight_name = '{}_bs{}_last_weak_augment_epoch_{}.pth'.format(
+                        self.args.model, 
+                        self.args.batch_size, 
+                        time.strftime("%Y-%m-%d_%H-%M-%S", time.localtime())
+                )
                 checkpoint_path = os.path.join(self.path_to_save, weight_name)
                 print('Saving state of the last weak augment epoch-{}.'.format(self.epoch + 1))
                 torch.save({'model': model.state_dict(),
@@ -854,7 +875,11 @@ class RTCTrainer(object):
             if self.evaluator is None:
                 print('No evaluator ... save model and go on training.')
                 print('Saving state, epoch: {}'.format(self.epoch + 1))
-                weight_name = '{}_no_eval.pth'.format(self.args.model)
+                weight_name = '{}_bs{}_no_eval_{}.pth'.format(
+                        self.args.model, 
+                        self.args.batch_size, 
+                        time.strftime("%Y-%m-%d_%H-%M-%S", time.localtime())
+                )
                 checkpoint_path = os.path.join(self.path_to_save, weight_name)
                 torch.save({'model': model_eval.state_dict(),
                             'mAP': -1.,
@@ -879,7 +904,11 @@ class RTCTrainer(object):
                     self.best_map = cur_map
                     # save model
                     print('Saving state, epoch:', self.epoch + 1)
-                    weight_name = '{}_best.pth'.format(self.args.model)
+                    weight_name = '{}_bs{}_best_{}.pth'.format(
+                            self.args.model, 
+                            self.args.batch_size, 
+                            time.strftime("%Y-%m-%d_%H-%M-%S", time.localtime())
+                    )
                     checkpoint_path = os.path.join(self.path_to_save, weight_name)
                     torch.save({'model': model_eval.state_dict(),
                                 'mAP': round(self.best_map*100, 1),

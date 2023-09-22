@@ -1,11 +1,13 @@
 # -------------------------- Train YOLOX series --------------------------
+# 3080ti
 python3 train.py \
         --cuda \
         -d plate \
         --root /home/david/dataset/lpd_lpr/detect_plate_datasets_coco \
         -m yolox_n \
-        -bs 64 \
-        -size 640 \
+        -bs 128 \
+        -size 320 \
+        --num_workers 8 \
         --wp_epoch 3 \
         --max_epoch 300 \
         --eval_epoch 10 \
@@ -14,7 +16,8 @@ python3 train.py \
         --ema \
         --fp16 \
         --mixup 0.0 \
-        --multi_scale > ./logs/matster.log
+        --load_cache \
+        --multi_scale > ./logs/matster.log &
         # --load_cache \
         # --resume weights/coco/yolox_m/yolox_m_best.pth \
         # --eval_first
