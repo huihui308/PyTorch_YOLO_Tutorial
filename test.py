@@ -31,7 +31,7 @@ def parse_args():
                         help='use cuda.')
     parser.add_argument('--save_folder', default='det_results/', type=str,
                         help='Dir to save results')
-    parser.add_argument('-vt', '--visual_threshold', default=0.4, type=float,
+    parser.add_argument('-vt', '--visual_threshold', default=0.3, type=float,
                         help='Final confidence threshold')
     parser.add_argument('-ws', '--window_scale', default=1.0, type=float,
                         help='resize window of cv2 for visualization.')
@@ -53,6 +53,8 @@ def parse_args():
                         help="not decode in inference or yes")
     parser.add_argument('--fuse_conv_bn', action='store_true', default=False,
                         help='fuse Conv & BN')
+    parser.add_argument('--nms_class_agnostic', action='store_true', default=False,
+                        help='Perform NMS operations regardless of category.')
 
     # dataset
     parser.add_argument('--root', default='/mnt/share/ssd2/dataset',
@@ -125,7 +127,7 @@ def test(args,
     save_path = os.path.join('det_results/', args.dataset, args.model)
     os.makedirs(save_path, exist_ok=True)
 
-    for index in range(num_images):
+    for index in range(2000,num_images):
         print('Testing image {:d}/{:d}....'.format(index+1, num_images))
         image, _ = dataset.pull_image(index)
 

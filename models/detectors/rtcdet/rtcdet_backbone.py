@@ -7,59 +7,52 @@ except:
 
 
 model_urls = {
-    'elannet_v2_p': "https://github.com/yjh0410/image_classification_pytorch/releases/download/weight/elannet_v2_pico.pth",
-    'elannet_v2_n': "https://github.com/yjh0410/image_classification_pytorch/releases/download/weight/elannet_v2_nano.pth",
-    'elannet_v2_t': "https://github.com/yjh0410/image_classification_pytorch/releases/download/weight/elannet_v2_tiny.pth",
-    'elannet_v2_s': "https://github.com/yjh0410/image_classification_pytorch/releases/download/weight/elannet_v2_small.pth",
-    'elannet_v2_m': None,
-    'elannet_v2_l': None,
-    'elannet_v2_x': None,
+    'elannet_pico':   "https://github.com/yjh0410/image_classification_pytorch/releases/download/weight/elannet_pico.pth",
+    'elannet_nano':   "https://github.com/yjh0410/image_classification_pytorch/releases/download/weight/elannet_nano.pth",
+    'elannet_tiny':   "https://github.com/yjh0410/image_classification_pytorch/releases/download/weight/elannet_tiny.pth",
+    'elannet_small':  "https://github.com/yjh0410/image_classification_pytorch/releases/download/weight/elannet_small.pth",
+    'elannet_medium': "https://github.com/yjh0410/image_classification_pytorch/releases/download/weight/elannet_medium.pth",
+    'elannet_large':  "https://github.com/yjh0410/image_classification_pytorch/releases/download/weight/elannet_large.pth",
+    'elannet_huge':   "https://github.com/yjh0410/image_classification_pytorch/releases/download/weight/elannet_huge.pth",
 }
 
 
 # ---------------------------- Backbones ----------------------------
-## Modified ELANNet-v2
-class ELANNetv2(nn.Module):
+# ELANNet-P5
+class ELANNet(nn.Module):
     def __init__(self, width=1.0, depth=1.0, act_type='silu', norm_type='BN', depthwise=False):
-        super(ELANNetv2, self).__init__()
+        super(ELANNet, self).__init__()
         # ------------------ Basic parameters ------------------
-        ## scale factor
         self.width = width
         self.depth = depth
-        self.expand_ratio = [0.5, 0.5, 0.5, 0.25]
-        self.branch_depths = [round(dep * depth) for dep in [3, 3, 3, 3]]
-        ## pyramid feats
-        self.feat_dims = [round(dim * width) for dim in [64, 128, 256, 512, 1024, 1024]]
-        ## nonlinear
-        self.act_type = act_type
-        self.norm_type = norm_type
-        self.depthwise = depthwise
+        self.expand_ratios = [0.5, 0.5, 0.5, 0.25]
+        self.feat_dims = [round(64*width), round(128*width), round(256*width), round(512*width), round(1024*width), round(1024*width)]
         
         # ------------------ Network parameters ------------------
         ## P1/2
         self.layer_1 = nn.Sequential(
-            Conv(3, self.feat_dims[0], k=6, p=2, s=2, act_type=self.act_type, norm_type=self.norm_type),
-            Conv(self.feat_dims[0], self.feat_dims[0], k=3, p=1, act_type=self.act_type, norm_type=self.norm_type, depthwise=self.depthwise),
+            Conv(3, self.feat_dims[0], k=3, p=1, s=2, act_type=act_type, norm_type=norm_type),
+            Conv(self.feat_dims[0], self.feat_dims[0], k=3, p=1, act_type=act_type, norm_type=norm_type, depthwise=depthwise)
         )
         ## P2/4
         self.layer_2 = nn.Sequential(   
-            DSBlock(self.feat_dims[0], self.feat_dims[1], act_type=self.act_type, norm_type=self.norm_type, depthwise=self.depthwise),
-            ELANBlock(self.feat_dims[1], self.feat_dims[2], self.expand_ratio[0], self.branch_depths[0], True, self.act_type, self.norm_type, self.depthwise)
+            Conv(self.feat_dims[0], self.feat_dims[1], k=3, p=1, s=2, act_type=act_type, norm_type=norm_type, depthwise=depthwise),             
+            ELANBlock(self.feat_dims[1], self.feat_dims[2], self.expand_ratios[0], self.depth, act_type, norm_type, depthwise)
         )
         ## P3/8
         self.layer_3 = nn.Sequential(
-            DSBlock(self.feat_dims[2], self.feat_dims[2], act_type=self.act_type, norm_type=self.norm_type, depthwise=self.depthwise),
-            ELANBlock(self.feat_dims[2], self.feat_dims[3], self.expand_ratio[1], self.branch_depths[1], True, self.act_type, self.norm_type, self.depthwise)
+            DSBlock(self.feat_dims[2], self.feat_dims[2], act_type, norm_type, depthwise),             
+            ELANBlock(self.feat_dims[2], self.feat_dims[3], self.expand_ratios[1], self.depth, act_type, norm_type, depthwise)
         )
         ## P4/16
         self.layer_4 = nn.Sequential(
-            DSBlock(self.feat_dims[3], self.feat_dims[3], act_type=self.act_type, norm_type=self.norm_type, depthwise=self.depthwise),
-            ELANBlock(self.feat_dims[3], self.feat_dims[4], self.expand_ratio[2], self.branch_depths[2], True, self.act_type, self.norm_type, self.depthwise)
+            DSBlock(self.feat_dims[3], self.feat_dims[3], act_type, norm_type, depthwise),             
+            ELANBlock(self.feat_dims[3], self.feat_dims[4], self.expand_ratios[2], self.depth, act_type, norm_type, depthwise)
         )
         ## P5/32
         self.layer_5 = nn.Sequential(
-            DSBlock(self.feat_dims[4], self.feat_dims[4], act_type=self.act_type, norm_type=self.norm_type, depthwise=self.depthwise),
-            ELANBlock(self.feat_dims[4], self.feat_dims[5], self.expand_ratio[3], self.branch_depths[3], True, self.act_type, self.norm_type, self.depthwise)
+            DSBlock(self.feat_dims[4], self.feat_dims[4], act_type, norm_type, depthwise),             
+            ELANBlock(self.feat_dims[4], self.feat_dims[5], self.expand_ratios[3], self.depth, act_type, norm_type, depthwise)
         )
 
 
@@ -79,9 +72,9 @@ class ELANNetv2(nn.Module):
 ## load pretrained weight
 def load_weight(model, model_name):
     # load weight
+    print('Loading pretrained weight ...')
     url = model_urls[model_name]
     if url is not None:
-        print('Loading pretrained weight for {} ...'.format(model_name))
         checkpoint = torch.hub.load_state_dict_from_url(
             url=url, map_location="cpu", check_hash=True)
         # checkpoint state dict
@@ -105,28 +98,32 @@ def load_weight(model, model_name):
 
     return model
 
-
-## build ELANNet-v2
-def build_backbone(cfg, pretrained=False):
+## build ELAN-Net
+def build_backbone(cfg, pretrained=False): 
     # model
-    backbone = ELANNetv2(cfg['width'], cfg['depth'], cfg['bk_act'], cfg['bk_norm'], cfg['bk_depthwise'])
-
+    backbone = ELANNet(
+        width=cfg['width'],
+        depth=cfg['depth'],
+        act_type=cfg['bk_act'],
+        norm_type=cfg['bk_norm'],
+        depthwise=cfg['bk_depthwise']
+        )
     # check whether to load imagenet pretrained weight
     if pretrained:
         if cfg['width'] == 0.25 and cfg['depth'] == 0.34 and cfg['bk_depthwise']:
-            backbone = load_weight(backbone, model_name='elannet_v2_p')
+            backbone = load_weight(backbone, model_name='elannet_pico')
         elif cfg['width'] == 0.25 and cfg['depth'] == 0.34:
-            backbone = load_weight(backbone, model_name='elannet_v2_n')
+            backbone = load_weight(backbone, model_name='elannet_nano')
         elif cfg['width'] == 0.375 and cfg['depth'] == 0.34:
-            backbone = load_weight(backbone, model_name='elannet_v2_t')
+            backbone = load_weight(backbone, model_name='elannet_tiny')
         elif cfg['width'] == 0.5 and cfg['depth'] == 0.34:
-            backbone = load_weight(backbone, model_name='elannet_v2_s')
+            backbone = load_weight(backbone, model_name='elannet_small')
         elif cfg['width'] == 0.75 and cfg['depth'] == 0.67:
-            backbone = load_weight(backbone, model_name='elannet_v2_m')
+            backbone = load_weight(backbone, model_name='elannet_medium')
         elif cfg['width'] == 1.0 and cfg['depth'] == 1.0:
-            backbone = load_weight(backbone, model_name='elannet_v2_l')
+            backbone = load_weight(backbone, model_name='elannet_large')
         elif cfg['width'] == 1.25 and cfg['depth'] == 1.34:
-            backbone = load_weight(backbone, model_name='elannet_v2_x')
+            backbone = load_weight(backbone, model_name='elannet_huge')
     feat_dims = backbone.feat_dims[-3:]
 
     return backbone, feat_dims
@@ -136,16 +133,12 @@ if __name__ == '__main__':
     import time
     from thop import profile
     cfg = {
-        ## Backbone
-        'backbone': 'elannetv2',
-        'pretrained': False,
+        'pretrained': True,
         'bk_act': 'silu',
         'bk_norm': 'BN',
-        'bk_depthwise': True,
-        'width': 0.25,
-        'depth': 0.34,
-        'stride': [8, 16, 32],  # P3, P4, P5
-        'max_stride': 32,
+        'bk_depthwise': False,
+        'width': 1.0,
+        'depth': 1.0,
     }
     model, feats = build_backbone(cfg)
     x = torch.randn(1, 3, 640, 640)

@@ -19,7 +19,7 @@ except:
 
 # ------------------------------ Dataset ------------------------------
 def build_dataset(args, data_cfg, trans_config, transform, is_train=False):
-    # Basic parameters
+    # ------------------------- Basic parameters -------------------------
     data_dir = os.path.join(args.root, data_cfg['data_name'])
     num_classes = data_cfg['num_classes']
     class_names = data_cfg['class_names']
@@ -30,7 +30,7 @@ def build_dataset(args, data_cfg, trans_config, transform, is_train=False):
         'class_indexs': class_indexs
     }
 
-    # Build dataset class
+    # ------------------------- Build dataset -------------------------
     ## VOC dataset
     if args.dataset == 'voc':
         dataset = VOCDetection(

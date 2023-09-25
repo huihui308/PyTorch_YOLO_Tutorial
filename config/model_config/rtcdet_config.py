@@ -5,7 +5,7 @@ rtcdet_cfg = {
     'rtcdet_p':{
         # ---------------- Model config ----------------
         ## Backbone
-        'backbone': 'elannet_v2',
+        'backbone': 'elannet',
         'pretrained': True,
         'bk_act': 'silu',
         'bk_norm': 'BN',
@@ -26,7 +26,7 @@ rtcdet_cfg = {
         'fpn': 'rtcdet_pafpn',
         'fpn_reduce_layer': 'conv',
         'fpn_downsample_layer': 'conv',
-        'fpn_core_block': 'elan_block',
+        'fpn_core_block': 'elanblock',
         'fpn_branch_depth': 3,
         'fpn_expand_ratio': 0.5,
         'fpn_act': 'silu',
@@ -41,19 +41,28 @@ rtcdet_cfg = {
         'head_depthwise': True,
         # ---------------- Train config ----------------
         ## Input
-        'multi_scale': [0.5, 1.5], # 320 -> 960
+        'multi_scale': [0.4, 1.0], # 256 -> 640
         'trans_type': 'yolox_pico',
         # ---------------- Assignment config ----------------
         ## Matcher
-        'matcher': {'center_sampling_radius': 2.5,
-                    'topk_candidate': 10},
+        'matcher': "simota",
+        'matcher_hpy': {"simota": {'center_sampling_radius': 2.5,
+                                   'topk_candidate': 10},
+                        "aligned_simota": {'soft_center_radius': 3.0,
+                                           'topk_candicate': 10,
+                                           'iou_weight': 3.0},
+                                           },
         # ---------------- Loss config ----------------
         ## Loss weight
         'ema_update': False,
         'loss_box_aux': True,
-        'loss_cls_weight': 1.0,
-        'loss_dfl_weight': 1.0,
-        'loss_box_weight': 5.0,
+        'loss_weights': {"simota": {'loss_cls_weight': 1.0,
+                                    'loss_dfl_weight': 1.0,
+                                    'loss_box_weight': 5.0},
+                         "aligned_simota": {'loss_cls_weight': 1.0,
+                                            'loss_dfl_weight': 1.0,
+                                            'loss_box_weight': 2.0}
+                                            },
         # ---------------- Train config ----------------
         'trainer_type': 'rtcdet',
     },
@@ -61,7 +70,7 @@ rtcdet_cfg = {
     'rtcdet_n':{
         # ---------------- Model config ----------------
         ## Backbone
-        'backbone': 'elannet_v2',
+        'backbone': 'elannet',
         'pretrained': True,
         'bk_act': 'silu',
         'bk_norm': 'BN',
@@ -82,7 +91,7 @@ rtcdet_cfg = {
         'fpn': 'rtcdet_pafpn',
         'fpn_reduce_layer': 'conv',
         'fpn_downsample_layer': 'conv',
-        'fpn_core_block': 'elan_block',
+        'fpn_core_block': 'elanblock',
         'fpn_branch_depth': 3,
         'fpn_expand_ratio': 0.5,
         'fpn_act': 'silu',
@@ -101,15 +110,24 @@ rtcdet_cfg = {
         'trans_type': 'yolox_nano',
         # ---------------- Assignment config ----------------
         ## Matcher
-        'matcher': {'center_sampling_radius': 2.5,
-                    'topk_candidate': 10},
+        'matcher': "simota",
+        'matcher_hpy': {"simota": {'center_sampling_radius': 2.5,
+                                   'topk_candidate': 10},
+                        "aligned_simota": {'soft_center_radius': 3.0,
+                                           'topk_candicate': 10,
+                                           'iou_weight': 3.0},
+                                           },
         # ---------------- Loss config ----------------
         ## Loss weight
         'ema_update': False,
         'loss_box_aux': True,
-        'loss_cls_weight': 1.0,
-        'loss_box_weight': 5.0,
-        'loss_dfl_weight': 1.0,
+        'loss_weights': {"simota": {'loss_cls_weight': 1.0,
+                                    'loss_dfl_weight': 1.0,
+                                    'loss_box_weight': 5.0},
+                         "aligned_simota": {'loss_cls_weight': 1.0,
+                                            'loss_dfl_weight': 1.0,
+                                            'loss_box_weight': 2.0}
+                                            },
         # ---------------- Train config ----------------
         'trainer_type': 'rtcdet',
     },
@@ -117,7 +135,7 @@ rtcdet_cfg = {
     'rtcdet_t':{
         # ---------------- Model config ----------------
         ## Backbone
-        'backbone': 'elannet_v2',
+        'backbone': 'elannet',
         'pretrained': True,
         'bk_act': 'silu',
         'bk_norm': 'BN',
@@ -138,7 +156,7 @@ rtcdet_cfg = {
         'fpn': 'rtcdet_pafpn',
         'fpn_reduce_layer': 'conv',
         'fpn_downsample_layer': 'conv',
-        'fpn_core_block': 'elan_block',
+        'fpn_core_block': 'elanblock',
         'fpn_branch_depth': 3,
         'fpn_expand_ratio': 0.5,
         'fpn_act': 'silu',
@@ -157,15 +175,24 @@ rtcdet_cfg = {
         'trans_type': 'yolox_small',
         # ---------------- Assignment config ----------------
         ## Matcher
-        'matcher': {'center_sampling_radius': 2.5,
-                    'topk_candidate': 10},
+        'matcher': "simota",
+        'matcher_hpy': {"simota": {'center_sampling_radius': 2.5,
+                                   'topk_candidate': 10},
+                        "aligned_simota": {'soft_center_radius': 3.0,
+                                           'topk_candicate': 10,
+                                           'iou_weight': 3.0},
+                                           },
         # ---------------- Loss config ----------------
         ## Loss weight
         'ema_update': False,
         'loss_box_aux': True,
-        'loss_cls_weight': 1.0,
-        'loss_dfl_weight': 1.0,
-        'loss_box_weight': 5.0,
+        'loss_weights': {"simota": {'loss_cls_weight': 1.0,
+                                    'loss_dfl_weight': 1.0,
+                                    'loss_box_weight': 5.0},
+                         "aligned_simota": {'loss_cls_weight': 1.0,
+                                            'loss_dfl_weight': 1.0,
+                                            'loss_box_weight': 2.0}
+                                            },
         # ---------------- Train config ----------------
         'trainer_type': 'rtcdet',
     },
@@ -173,7 +200,7 @@ rtcdet_cfg = {
     'rtcdet_s':{
         # ---------------- Model config ----------------
         ## Backbone
-        'backbone': 'elannet_v2',
+        'backbone': 'elannet',
         'pretrained': True,
         'bk_act': 'silu',
         'bk_norm': 'BN',
@@ -194,7 +221,7 @@ rtcdet_cfg = {
         'fpn': 'rtcdet_pafpn',
         'fpn_reduce_layer': 'conv',
         'fpn_downsample_layer': 'conv',
-        'fpn_core_block': 'elan_block',
+        'fpn_core_block': 'elanblock',
         'fpn_branch_depth': 3,
         'fpn_expand_ratio': 0.5,
         'fpn_act': 'silu',
@@ -213,15 +240,24 @@ rtcdet_cfg = {
         'trans_type': 'yolox_small',
         # ---------------- Assignment config ----------------
         ## Matcher
-        'matcher': {'center_sampling_radius': 2.5,
-                    'topk_candidate': 10},
+        'matcher': "simota",
+        'matcher_hpy': {"simota": {'center_sampling_radius': 2.5,
+                                   'topk_candidate': 10},
+                        "aligned_simota": {'soft_center_radius': 3.0,
+                                           'topk_candicate': 10,
+                                           'iou_weight': 3.0},
+                                           },
         # ---------------- Loss config ----------------
         ## Loss weight
         'ema_update': False,
         'loss_box_aux': True,
-        'loss_cls_weight': 1.0,
-        'loss_dfl_weight': 1.0,
-        'loss_box_weight': 5.0,
+        'loss_weights': {"simota": {'loss_cls_weight': 1.0,
+                                    'loss_dfl_weight': 1.0,
+                                    'loss_box_weight': 5.0},
+                         "aligned_simota": {'loss_cls_weight': 1.0,
+                                            'loss_dfl_weight': 1.0,
+                                            'loss_box_weight': 2.0}
+                                            },
         # ---------------- Train config ----------------
         'trainer_type': 'rtcdet',
     },
@@ -229,7 +265,7 @@ rtcdet_cfg = {
     'rtcdet_m':{
         # ---------------- Model config ----------------
         ## Backbone
-        'backbone': 'elannet_v2',
+        'backbone': 'elannet',
         'pretrained': False,
         'bk_act': 'silu',
         'bk_norm': 'BN',
@@ -250,7 +286,7 @@ rtcdet_cfg = {
         'fpn': 'rtcdet_pafpn',
         'fpn_reduce_layer': 'conv',
         'fpn_downsample_layer': 'conv',
-        'fpn_core_block': 'elan_block',
+        'fpn_core_block': 'elanblock',
         'fpn_branch_depth': 3,
         'fpn_expand_ratio': 0.5,
         'fpn_act': 'silu',
@@ -269,15 +305,24 @@ rtcdet_cfg = {
         'trans_type': 'yolox_medium',
         # ---------------- Assignment config ----------------
         ## Matcher
-        'matcher': {'center_sampling_radius': 2.5,
-                    'topk_candidate': 10},
+        'matcher': "simota",
+        'matcher_hpy': {"simota": {'center_sampling_radius': 2.5,
+                                   'topk_candidate': 10},
+                        "aligned_simota": {'soft_center_radius': 3.0,
+                                           'topk_candicate': 10,
+                                           'iou_weight': 3.0},
+                                           },
         # ---------------- Loss config ----------------
         ## Loss weight
         'ema_update': False,
         'loss_box_aux': True,
-        'loss_cls_weight': 1.0,
-        'loss_dfl_weight': 1.0,
-        'loss_box_weight': 5.0,
+        'loss_weights': {"simota": {'loss_cls_weight': 1.0,
+                                    'loss_dfl_weight': 1.0,
+                                    'loss_box_weight': 5.0},
+                         "aligned_simota": {'loss_cls_weight': 1.0,
+                                            'loss_dfl_weight': 1.0,
+                                            'loss_box_weight': 2.0}
+                                            },
         # ---------------- Train config ----------------
         'trainer_type': 'rtcdet',
     },
@@ -285,7 +330,7 @@ rtcdet_cfg = {
     'rtcdet_l':{
         # ---------------- Model config ----------------
         ## Backbone
-        'backbone': 'elannet_v2',
+        'backbone': 'elannet',
         'pretrained': False,
         'bk_act': 'silu',
         'bk_norm': 'BN',
@@ -306,7 +351,7 @@ rtcdet_cfg = {
         'fpn': 'rtcdet_pafpn',
         'fpn_reduce_layer': 'conv',
         'fpn_downsample_layer': 'conv',
-        'fpn_core_block': 'elan_block',
+        'fpn_core_block': 'elanblock',
         'fpn_branch_depth': 3,
         'fpn_expand_ratio': 0.5,
         'fpn_act': 'silu',
@@ -321,19 +366,28 @@ rtcdet_cfg = {
         'head_depthwise': False,
         # ---------------- Train config ----------------
         ## Input
-        'multi_scale': [0.5, 1.25], # 320 -> 800
+        'multi_scale': [0.5, 1.5], # 320 -> 960
         'trans_type': 'yolox_large',
         # ---------------- Assignment config ----------------
         ## Matcher
-        'matcher': {'center_sampling_radius': 2.5,
-                    'topk_candidate': 10},
+        'matcher': "simota",
+        'matcher_hpy': {"simota": {'center_sampling_radius': 2.5,
+                                   'topk_candidate': 10},
+                        "aligned_simota": {'soft_center_radius': 3.0,
+                                           'topk_candicate': 10,
+                                           'iou_weight': 3.0},
+                                           },
         # ---------------- Loss config ----------------
         ## Loss weight
         'ema_update': False,
         'loss_box_aux': True,
-        'loss_cls_weight': 1.0,
-        'loss_dfl_weight': 1.0,
-        'loss_box_weight': 5.0,
+        'loss_weights': {"simota": {'loss_cls_weight': 1.0,
+                                    'loss_dfl_weight': 1.0,
+                                    'loss_box_weight': 5.0},
+                         "aligned_simota": {'loss_cls_weight': 1.0,
+                                            'loss_dfl_weight': 1.0,
+                                            'loss_box_weight': 2.0}
+                                            },
         # ---------------- Train config ----------------
         'trainer_type': 'rtcdet',
     },
@@ -341,7 +395,7 @@ rtcdet_cfg = {
     'rtcdet_x':{
         # ---------------- Model config ----------------
         ## Backbone
-        'backbone': 'elannet_v2',
+        'backbone': 'elannet',
         'pretrained': False,
         'bk_act': 'silu',
         'bk_norm': 'BN',
@@ -362,7 +416,7 @@ rtcdet_cfg = {
         'fpn': 'rtcdet_pafpn',
         'fpn_reduce_layer': 'conv',
         'fpn_downsample_layer': 'conv',
-        'fpn_core_block': 'elan_block',
+        'fpn_core_block': 'elanblock',
         'fpn_branch_depth': 3,
         'fpn_expand_ratio': 0.5,
         'fpn_act': 'silu',
@@ -381,15 +435,24 @@ rtcdet_cfg = {
         'trans_type': 'yolox_huge',
         # ---------------- Assignment config ----------------
         ## Matcher
-        'matcher': {'center_sampling_radius': 2.5,
-                    'topk_candidate': 10},
+        'matcher': "simota",
+        'matcher_hpy': {"simota": {'center_sampling_radius': 2.5,
+                                   'topk_candidate': 10},
+                        "aligned_simota": {'soft_center_radius': 3.0,
+                                           'topk_candicate': 10,
+                                           'iou_weight': 3.0},
+                                           },
         # ---------------- Loss config ----------------
         ## Loss weight
         'ema_update': False,
         'loss_box_aux': True,
-        'loss_cls_weight': 1.0,
-        'loss_dfl_weight': 1.0,
-        'loss_box_weight': 5.0,
+        'loss_weights': {"simota": {'loss_cls_weight': 1.0,
+                                    'loss_dfl_weight': 1.0,
+                                    'loss_box_weight': 5.0},
+                         "aligned_simota": {'loss_cls_weight': 1.0,
+                                            'loss_dfl_weight': 1.0,
+                                            'loss_box_weight': 2.0}
+                                            },
         # ---------------- Train config ----------------
         'trainer_type': 'rtcdet',
     },
