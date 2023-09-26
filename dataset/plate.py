@@ -255,7 +255,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='FreeYOLOv2')
 
     # opt
-    parser.add_argument('--root', default='/Users/liuhaoran/Desktop/python_work/object-detection/dataset/AnimalDataset/',
+    parser.add_argument('--root', default='/home/david/dataset/lpd_lpr/detect_plate_datasets_coco',
                         help='data root')
     parser.add_argument('--split', default='train',
                         help='data split')

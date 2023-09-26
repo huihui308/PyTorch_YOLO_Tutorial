@@ -140,6 +140,8 @@ def yolov5_mosaic_augment(image_list, target_list, img_size, affine_params, is_t
         padh = y1a - y1b
 
         # labels
+        if torch.is_tensor(bboxes_i):
+            bboxes_i = bboxes_i.numpy()
         bboxes_i_ = bboxes_i.copy()
         if len(bboxes_i) > 0:
             # a valid target, and modify it.
