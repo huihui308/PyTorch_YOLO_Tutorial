@@ -1,12 +1,12 @@
 # -------------------------- Train RTCDet series --------------------------
 python train.py \
         --cuda \
-        -d voc \
-        --root /mnt/share/ssd2/dataset/ \
-        -m rtcdet_n \
+        -d coco \
+        --root /data/datasets/ \
+        -m rtrdet_l \
         -bs 16 \
         -size 640 \
-        --wp_epoch 3 \
+        --wp_epoch 1 \
         --max_epoch 300 \
         --eval_epoch 10 \
         --no_aug_epoch 20 \
@@ -14,6 +14,7 @@ python train.py \
         --ema \
         --fp16 \
         --multi_scale \
+        --eval_first \
         # --load_cache \
         # --resume weights/coco/yolox_m/yolox_m_best.pth \
         # --eval_first

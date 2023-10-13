@@ -12,7 +12,8 @@ rtrdet_cfg = {
         'bk_depthwise': False,
         'width': 1.0,
         'depth': 1.0,
-        'max_stride': 16,
+        'max_stride': 32,
+        'out_stride': 16,
         'd_model': 512,
         ## Transformer Encoder
         'transformer': 'RTRDetTransformer',
@@ -29,13 +30,13 @@ rtrdet_cfg = {
         'decoder_mlp_ratio': 4.0,
         'decoder_dropout': 0.1,
         'decoder_act': 'relu',
-        'decoder_num_queries': 300,
+        'decoder_num_queries': 100,
         'decoder_num_pattern': 3,
         'spatial_prior': 'learned',  # 'learned', 'grid'
         'num_topk': 100,
         # ---------------- Train config ----------------
         ## Input
-        'multi_scale': [0.5, 1.5], # 320 -> 960
+        'multi_scale': [0.5, 1.0], # 320 -> 640
         'trans_type': 'rtrdet_large',
         # ---------------- Assignment config ----------------
         ## Matcher
