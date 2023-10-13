@@ -75,13 +75,13 @@ python3 train.py \
         # --resume weights/coco/yolox_m/yolox_m_best.pth \
         # --eval_first
 
-
+# rtcdet_x
 python3 train.py \
         --cuda \
         -d plate \
         --root /home/david/dataset/lpd_lpr/detect_plate_datasets_coco \
-        -m rtcdet_p \
-        -bs 256 \
+        -m rtcdet_x \
+        -bs 64 \
         -size 160 \
         --num_workers 8 \
         --wp_epoch 3 \

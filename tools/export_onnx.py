@@ -2,6 +2,11 @@
 # -*- coding:utf-8 -*-
 # Copyright (c) Megvii, Inc. and its affiliates.
 # Thanks to YOLOX: https://github.com/Megvii-BaseDetection/YOLOX/blob/main/tools/export_onnx.py
+"""
+    python3 export_onnx.py --model=rtcdet_p --num_classes=2 --dynamic --weight=./../weights/plate/rtcdet_p/rtcdet_p_bs256_best_2023-09-27_06-09-12.pth
+
+    python3 export_onnx.py --model=yolox_n --num_classes=2 --dynamic --weight=./../weights/plate/yolox_n/yolox_n_best.pth
+"""
 
 import argparse
 import os
@@ -59,6 +64,8 @@ def make_parser():
                         help='topk candidates for testing')
     parser.add_argument('--fuse_conv_bn', action='store_true', default=False,
                         help='fuse Conv & BN')
+    parser.add_argument('--nms_class_agnostic', action='store_true', default=False,
+                        help='Perform NMS operations regardless of category.')
 
     return parser
 
@@ -91,7 +98,7 @@ def main():
     output_name = os.path.join(args.model + '.onnx')
     output_path = os.path.join(save_path, output_name)
 
-    torch.onnx._export(
+    torch.onnx.export(
         model,
         dummy_input,
         output_path,
@@ -114,8 +121,9 @@ def main():
         # use onnxsimplify to reduce reduent model.
         onnx_model = onnx.load(output_path)
         model_simp, check = simplify(onnx_model,
-                                     dynamic_input_shape=args.dynamic,
-                                     input_shapes=input_shapes)
+                                     #dynamic_input_shape=args.dynamic,
+                                     #input_shapes=input_shapes
+                                    )
         assert check, "Simplified ONNX model could not be validated"
 
         # save onnxsim file
