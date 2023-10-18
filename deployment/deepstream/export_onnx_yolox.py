@@ -1,17 +1,25 @@
-#!/usr/bin/env python3
-# -*- coding:utf-8 -*-
-# Copyright (c) Megvii, Inc. and its affiliates.
-# Thanks to YOLOX: https://github.com/Megvii-BaseDetection/YOLOX/blob/main/tools/export_onnx.py
 """
-    python3 export_onnx.py --model=yolox_n --num_classes=2 --dynamic --weight=./../weights/plate/yolox_n/yolox_n_best.pth
-    python3 onnx_inference.py --mode=dir --output_dir=./results --model=./../../weights/onnx/11/rtcdet_p.onnx --image_path=./test --num_classes=2 --img_size=160
-"""
+    python3 export_onnx.py --model=rtcdet_p --num_classes=2 --dynamic --weight=./../weights/plate/rtcdet_p/rtcdet_p_bs256_best_2023-09-27_06-09-12.pth
 
-import argparse
+    python3 export_onnx.py --model=yolox_n --num_classes=2 --dynamic --weight=./../weights/plate/yolox_n/yolox_n_best.pth
+"""
+"""
 import os
-from loguru import logger
 import sys
-sys.path.append('../../')
+import argparse
+import warnings
+import onnx
+import torch
+import torch.nn as nn
+from yolox.exp import get_exp
+from yolox.utils import replace_module
+from yolox.models.network_blocks import SiLU
+"""
+import argparse
+import os, sys
+import warnings
+from loguru import logger
+sys.path.append('..')
 
 import torch
 from torch import nn
@@ -21,9 +29,10 @@ from utils.misc import load_weight, replace_module
 
 from config import  build_model_config
 from models.detectors import build_model
+from copy import deepcopy
 
 
-def make_parser():
+def parse_args():
     parser = argparse.ArgumentParser("YOLO ONNXRuntime")
     # basic
     parser.add_argument('-size', '--img_size', default=640, type=int,
@@ -34,7 +43,7 @@ def make_parser():
                         help="output node name of onnx model")
     parser.add_argument("-o", "--opset", default=11, type=int,
                         help="onnx opset version")
-    parser.add_argument("--batch-size", type=int, default=1,
+    parser.add_argument("--batch", type=int, default=1,
                         help="batch size")
     parser.add_argument("--dynamic", action="store_true", default=False,
                         help="whether the input shape should be dynamic or not")
@@ -45,7 +54,7 @@ def make_parser():
     parser.add_argument("-expn", "--experiment-name", type=str, default=None)
     parser.add_argument("opts", default=None, nargs=argparse.REMAINDER,
                         help="Modify config options using the command-line")
-    parser.add_argument('--save_dir', default='../../weights/onnx/', type=str,
+    parser.add_argument('--save_dir', default='../weights/onnx/', type=str,
                         help='Dir to save onnx file')
 
     # model
@@ -77,7 +86,7 @@ class DeepStreamOutput(nn.Module):
         #x = x.transpose(1, 2)
         #print(x.dim())
         boxes = x[..., :4]
-        scores, classes = torch.max(x[..., 4:], 2, keepdim=True)
+        scores, classes = torch.max(x[..., 4:], 1, keepdim=True)
         classes = classes.float()
         print(boxes.size(), scores.size(), classes.size())
         """
@@ -90,10 +99,39 @@ class DeepStreamOutput(nn.Module):
         return boxes, scores, classes
 
 
-@logger.catch
+def suppress_warnings():
+    warnings.filterwarnings('ignore', category=torch.jit.TracerWarning)
+    warnings.filterwarnings('ignore', category=UserWarning)
+    warnings.filterwarnings('ignore', category=DeprecationWarning)
+
+
+def yolox_export(weights, exp_file):
+    exp = get_exp(exp_file)
+    model = exp.get_model()
+    ckpt = torch.load(weights, map_location='cpu')
+    model.eval()
+    if 'model' in ckpt:
+        ckpt = ckpt['model']
+    model.load_state_dict(ckpt)
+    model = replace_module(model, nn.SiLU, SiLU)
+    model.head.decode_in_inference = True
+    return model, exp
+
+
 def main():
-    args = make_parser().parse_args()
+    args = parse_args().parse_args()
+    suppress_warnings()
+
     logger.info("args value: {}".format(args))
+    print('\nStarting: %s' % args.weight)
+
+    print('Opening YOLOX model')
+
+    device = torch.device('cpu')
+
+
+    ##model, exp = yolox_export(args.weights, args.exp)
+
     device = torch.device('cpu')
 
     # Dataset & Model Config
@@ -107,18 +145,31 @@ def main():
 
     # load trained weight
     model = load_weight(model, args.weight, args.fuse_conv_bn)
+
+    for p in model.parameters():
+        p.requires_grad = False
+
     model = model.to(device).eval()
 
-    logger.info("loading checkpoint done.")
-    dummy_input = torch.randn(args.batch_size, 3, args.img_size, args.img_size)
+    #model.float()
+    #for k, m in model.named_modules():
+    #    print(m)
 
+
+    model = nn.Sequential(model, DeepStreamOutput())
+
+    #img_size = [exp.input_size[1], exp.input_size[0]]
+    img_size = [args.img_size, args.img_size]
+
+    onnx_input_im = torch.zeros(args.batch, 3, *img_size).to(device)
+
+    #onnx_output_file = os.path.basename(args.weights).split('.pt')[0] + '.onnx'
     # save onnx file
     save_path = os.path.join(args.save_dir, str(args.opset))
     os.makedirs(save_path, exist_ok=True)
     output_name = os.path.join(args.model + '.onnx')
-    output_path = os.path.join(save_path, output_name)
+    onnx_output_file = os.path.join(save_path, output_name)
 
-    model = nn.Sequential(model, DeepStreamOutput())
     dynamic_axes = {
         'input': {
             0: 'batch'
@@ -134,42 +185,51 @@ def main():
         }
     }
 
+    print('Exporting the model to ONNX')
     torch.onnx.export(
-        model,
-        dummy_input,
-        output_path,
+        model, 
+        onnx_input_im, 
+        onnx_output_file, 
+        #verbose=False, 
+        opset_version=args.opset,
+        #do_constant_folding=True, 
         input_names=['input'], 
         output_names=['boxes', 'scores', 'classes'],
-        #dynamic_axes={args.input: {0: 'batch'},
-        #              output_name: {0: 'batch'}} if args.dynamic else None,
-        opset_version=args.opset,
         dynamic_axes=dynamic_axes if args.dynamic else None
     )
+    logger.info("generated onnx model named {}".format(onnx_output_file))
 
-    logger.info("generated onnx model named {}".format(output_path))
-
-    if not args.no_onnxsim:
+    if True:
+    #if args.simplify:
+        print('Simplifying the ONNX model')
         import onnx
+        import onnxsim
+        model_onnx = onnx.load(onnx_output_file)
+        model_onnx, _ = onnxsim.simplify(model_onnx)
+        onnx.save(model_onnx, onnx_output_file)
 
-        from onnxsim import simplify
-
-        input_shapes = {args.input: list(dummy_input.shape)} if args.dynamic else None
-
-        # use onnxsimplify to reduce reduent model.
-        onnx_model = onnx.load(output_path)
-        model_simp, check = simplify(onnx_model,
-                                     #dynamic_input_shape=args.dynamic,
-                                     #input_shapes=input_shapes
-                                    )
-        assert check, "Simplified ONNX model could not be validated"
-
-        # save onnxsim file
-        save_path = os.path.join(save_path, 'onnxsim')
-        os.makedirs(save_path, exist_ok=True)
-        output_path = os.path.join(save_path, output_name)
-        onnx.save(model_simp, output_path)
-        logger.info("generated simplified onnx model named {}".format(output_path))
+    print('Done: %s\n' % onnx_output_file)
 
 
-if __name__ == "__main__":
-    main()
+"""
+def parse_args():
+    parser = argparse.ArgumentParser(description='DeepStream YOLOX conversion')
+    parser.add_argument('-w', '--weights', required=True, help='Input weights (.pth) file path (required)')
+    parser.add_argument('-c', '--exp', required=True, help='Input exp (.py) file path (required)')
+    parser.add_argument('--opset', type=int, default=11, help='ONNX opset version')
+    parser.add_argument('--simplify', action='store_true', help='ONNX simplify model')
+    parser.add_argument('--dynamic', action='store_true', help='Dynamic batch-size')
+    parser.add_argument('--batch', type=int, default=1, help='Static batch-size')
+    args = parser.parse_args()
+    if not os.path.isfile(args.weights):
+        raise SystemExit('Invalid weights file')
+    if not os.path.isfile(args.exp):
+        raise SystemExit('Invalid exp file')
+    if args.dynamic and args.batch > 1:
+        raise SystemExit('Cannot set dynamic batch-size and static batch-size at same time')
+    return args
+"""
+
+
+if __name__ == '__main__':
+    sys.exit(main())

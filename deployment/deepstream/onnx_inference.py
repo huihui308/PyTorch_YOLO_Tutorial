@@ -3,14 +3,13 @@
 # Copyright (c) Megvii, Inc. and its affiliates.
 """
     python3 onnx_inference.py --model=./../../weights/onnx/11/rtcdet_p.onnx --image_path=./test.jpg --num_classes=2
+    python3 onnx_inference.py --mode=dir --output_dir=./results --model=./../../weights/onnx/11/rtcdet_p.onnx --image_path=./test --num_classes=2 --img_size=640
 """
-import argparse
-import os
-
 import cv2
-import time
+import argparse
 import numpy as np
-import sys
+import os, sys, time
+from loguru import logger
 sys.path.append('../../')
 
 import onnxruntime
@@ -32,11 +31,13 @@ def make_parser():
                         help="Specify an input shape for inference.")
     parser.add_argument("-class", "--num_classes", type=int, default=80,
                         help="The number classess of the model.")
+    parser.add_argument('--mode', default='dir', required=True,
+                        type=str, help='Use the data from dir(include image, video) or camera')
     return parser
 
 
 ## Post-processer
-class PostProcessor1(object):
+class PostProcessorDeepstream(object):
     def __init__(self, num_classes, conf_thresh=0.15, nms_thresh=0.5):
         self.num_classes = num_classes
         self.conf_thresh = conf_thresh
@@ -48,7 +49,6 @@ class PostProcessor1(object):
         Input:
             predictions: (ndarray) [n_anchors_all, 4+1+C]
         """
-        print("1111111111")
         print(type(bboxes))
         #bboxes = bboxes[..., :4]
         #scores = scores[..., 4:]
@@ -71,14 +71,11 @@ class PostProcessor1(object):
         # nms
         scores, labels, bboxes = multiclass_nms(
             scores, labels, bboxes, self.nms_thresh, self.num_classes, True)
-        print("2222222222")
 
         return bboxes, scores, labels
 
 
-if __name__ == '__main__':
-    args = make_parser().parse_args()
-
+def inference_one_image(args, file_path)->None:
     # class color for better visualization
     np.random.seed(0)
     class_colors = [(np.random.randint(255),
@@ -88,12 +85,12 @@ if __name__ == '__main__':
     # preprocessor
     prepocess = PreProcessor(img_size=args.img_size)
 
-    # postprocessor1
-    postprocess = PostProcessor1(num_classes=args.num_classes, conf_thresh=args.score_thr, nms_thresh=0.5)
+    # postprocessorDeepstream
+    postprocess = PostProcessorDeepstream(num_classes=args.num_classes, conf_thresh=args.score_thr, nms_thresh=0.5)
 
     # read an image
     input_shape = tuple([args.img_size, args.img_size])
-    origin_img = cv2.imread(args.image_path)
+    origin_img = cv2.imread(file_path)
 
     # preprocess
     x, ratio = prepocess(origin_img)
@@ -131,5 +128,29 @@ if __name__ == '__main__':
 
     # save results
     os.makedirs(args.output_dir, exist_ok=True)
-    output_path = os.path.join(args.output_dir, os.path.basename(args.image_path))
+    output_path = os.path.join(args.output_dir, os.path.basename(file_path))
     cv2.imwrite(output_path, origin_img)
+    logger.info('Result is {}'.format(output_path))
+    return
+
+
+def parse_dir_files(args)->None:
+    for parent, dirnames, filenames in os.walk(args.image_path,  followlinks=True):
+        for filename in filenames:
+            file_path = os.path.join(parent, filename)
+            #logger.info('文件名：{}'.format(filename))
+            #print('文件完整路径：%s\n' % file_path)
+            if os.path.splitext(filename)[-1] in ('.jpg', '.png'):
+                inference_one_image(args, file_path)
+    return
+
+
+@logger.catch
+def main_func():
+    args = make_parser().parse_args()
+    if args.mode == 'dir':
+        parse_dir_files(args)
+
+
+if __name__ == '__main__':
+    main_func()
