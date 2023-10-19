@@ -3,14 +3,12 @@
 # Copyright (c) Megvii, Inc. and its affiliates.
 # Thanks to YOLOX: https://github.com/Megvii-BaseDetection/YOLOX/blob/main/tools/export_onnx.py
 """
-    python3 export_onnx.py --model=yolox_n --num_classes=2 --dynamic --weight=./../weights/plate/yolox_n/yolox_n_best.pth
-    python3 onnx_inference.py --mode=dir --output_dir=./results --model=./../../weights/onnx/11/rtcdet_p.onnx --image_path=./test --num_classes=2 --img_size=160
+    python3 export_onnx.py --model=yolox_n --num_classes=2 --dynamic --weight=./../weights/plate/yolox_n/yolox_n_best.pth --img_size=160
+    python3 export_onnx.py --save_dir=./results --model=rtcdet_p --num_classes=2 --dynamic --weight=./../../weights/plate/rtcdet_p/rtcdet_p_bs256_best_2023-09-27_06-09-12.pth --img_size=160
 """
-
-import argparse
-import os
+import warnings
+import os, sys, argparse
 from loguru import logger
-import sys
 sys.path.append('../../')
 
 import torch
@@ -24,7 +22,7 @@ from models.detectors import build_model
 
 
 def make_parser():
-    parser = argparse.ArgumentParser("YOLO ONNXRuntime")
+    parser = argparse.ArgumentParser("RTCP ONNXRuntime")
     # basic
     parser.add_argument('-size', '--img_size', default=640, type=int,
                         help='the max size of input image')
@@ -47,7 +45,6 @@ def make_parser():
                         help="Modify config options using the command-line")
     parser.add_argument('--save_dir', default='../../weights/onnx/', type=str,
                         help='Dir to save onnx file')
-
     # model
     parser.add_argument('-m', '--model', default='yolov1', type=str,
                         help='build yolo')
@@ -68,57 +65,48 @@ def make_parser():
     return parser
 
 
-class DeepStreamOutput(nn.Module):
+def suppress_warnings()->None:
+    warnings.filterwarnings('ignore', category=torch.jit.TracerWarning)
+    warnings.filterwarnings('ignore', category=UserWarning)
+    warnings.filterwarnings('ignore', category=DeprecationWarning)
+
+
+class deepstream_output(nn.Module):
     def __init__(self):
         super().__init__()
 
     def forward(self, x):
         print(x.size())
-        #x = x.transpose(1, 2)
-        #print(x.dim())
         boxes = x[..., :4]
-        scores, classes = torch.max(x[..., 4:], 2, keepdim=True)
+        scores, classes = torch.max(x[..., 4:], -1, keepdim=True)
         classes = classes.float()
         print(boxes.size(), scores.size(), classes.size())
-        """
-        boxes = x[:, :, :4]
-        objectness = x[:, :, 4:5]
-        scores, classes = torch.max(x[:, :, 5:], 2, keepdim=True)
-        scores *= objectness
-        classes = classes.float()
-        """
-        return boxes, scores, classes
+        return (boxes, scores, classes)
 
 
 @logger.catch
-def main():
+def main_func():
     args = make_parser().parse_args()
+    suppress_warnings()
     logger.info("args value: {}".format(args))
     device = torch.device('cpu')
-
     # Dataset & Model Config
     model_cfg = build_model_config(args)
-
     # build model
     model = build_model(args, model_cfg, device, args.num_classes, False, deploy=True)
-
     # replace nn.SiLU with SiLU
     model = replace_module(model, nn.SiLU, SiLU)
-
     # load trained weight
     model = load_weight(model, args.weight, args.fuse_conv_bn)
     model = model.to(device).eval()
-
     logger.info("loading checkpoint done.")
     dummy_input = torch.randn(args.batch_size, 3, args.img_size, args.img_size)
-
     # save onnx file
     save_path = os.path.join(args.save_dir, str(args.opset))
     os.makedirs(save_path, exist_ok=True)
     output_name = os.path.join(args.model + '.onnx')
     output_path = os.path.join(save_path, output_name)
-
-    model = nn.Sequential(model, DeepStreamOutput())
+    model = nn.Sequential(model, deepstream_output())
     dynamic_axes = {
         'input': {
             0: 'batch'
@@ -133,28 +121,22 @@ def main():
             0: 'batch'
         }
     }
-
     torch.onnx.export(
         model,
         dummy_input,
         output_path,
+        #verbose=False, 
         input_names=['input'], 
         output_names=['boxes', 'scores', 'classes'],
-        #dynamic_axes={args.input: {0: 'batch'},
-        #              output_name: {0: 'batch'}} if args.dynamic else None,
         opset_version=args.opset,
         dynamic_axes=dynamic_axes if args.dynamic else None
     )
-
     logger.info("generated onnx model named {}".format(output_path))
-
     if not args.no_onnxsim:
         import onnx
-
         from onnxsim import simplify
 
         input_shapes = {args.input: list(dummy_input.shape)} if args.dynamic else None
-
         # use onnxsimplify to reduce reduent model.
         onnx_model = onnx.load(output_path)
         model_simp, check = simplify(onnx_model,
@@ -162,7 +144,6 @@ def main():
                                      #input_shapes=input_shapes
                                     )
         assert check, "Simplified ONNX model could not be validated"
-
         # save onnxsim file
         save_path = os.path.join(save_path, 'onnxsim')
         os.makedirs(save_path, exist_ok=True)
@@ -172,4 +153,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main_func()
