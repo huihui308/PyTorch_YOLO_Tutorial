@@ -140,8 +140,8 @@ class RTCDet(nn.Module):
         all_box_preds = outputs['pred_box']
 
         if self.deploy:
-            cls_preds = torch.cat(all_cls_preds, dim=1)[0]
-            box_preds = torch.cat(all_box_preds, dim=1)[0]
+            cls_preds = torch.cat(all_cls_preds, dim=1)
+            box_preds = torch.cat(all_box_preds, dim=1)
             scores = cls_preds.sigmoid()
             bboxes = box_preds
             # [n_anchors_all, 4 + C]
