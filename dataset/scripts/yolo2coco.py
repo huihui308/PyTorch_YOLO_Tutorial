@@ -21,7 +21,6 @@ YOLO 格式的数据集转化为 COCO 格式的数据集
 --random_split 有则会随机划分数据集，然后再分别保存为3个文件。
 --split_by_file 按照 ./train.txt ./val.txt ./test.txt 来对数据集进行划分。
 """
-
 import os
 import cv2
 import json
@@ -45,6 +44,7 @@ def train_test_val_split_random(img_paths,ratio_train=0.8,ratio_test=0.1,ratio_v
     val_img, test_img  =train_test_split(middle_img,test_size=ratio, random_state=233)
     print("NUMS of train:val:test = {}:{}:{}".format(len(train_img), len(val_img), len(test_img)))
     return train_img, val_img, test_img
+
 
 def train_test_val_split_by_files(img_paths, root_dir):
     # 根据文件 train.txt, val.txt, test.txt（里面写的都是对应集合的图片名字） 来定义训练集、验证集和测试集
@@ -172,6 +172,6 @@ def yolo2coco(arg):
             json.dump(dataset, f)
             print('Save annotation to {}'.format(json_name))
 
-if __name__ == "__main__":
 
+if __name__ == "__main__":
     yolo2coco(arg)

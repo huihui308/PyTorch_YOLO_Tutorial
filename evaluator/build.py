@@ -2,7 +2,7 @@ import os
 
 from evaluator.coco_evaluator import COCOAPIEvaluator
 from evaluator.voc_evaluator import VOCAPIEvaluator
-from evaluator.plate_evaluator import PlateDatasetEvaluator
+from evaluator.my_evaluator import MyDatasetEvaluator
 from evaluator.ourdataset_evaluator import OurDatasetEvaluator
 
 
@@ -24,9 +24,9 @@ def build_evluator(args, data_cfg, transform, device):
             device=device,
             transform=transform
             )
-    ## Plate Evaluator
-    elif args.dataset == 'plate':
-        evaluator = PlateDatasetEvaluator(
+    ## mycoco Evaluator
+    elif args.dataset in ('plate', 'traffic11'):
+        evaluator = MyDatasetEvaluator(
             data_dir=data_dir,
             device=device,
             image_set='val',

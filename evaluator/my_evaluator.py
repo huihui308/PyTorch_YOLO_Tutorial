@@ -1,7 +1,7 @@
 import json
 import tempfile
 import torch
-from dataset.plate import PlateDetection
+from dataset.mycoco import MyCOCO
 from utils.box_ops import rescale_bboxes
 
 try:
@@ -10,7 +10,7 @@ except:
     print("It seems that the COCOAPI is not installed.")
 
 
-class PlateDatasetEvaluator():
+class MyDatasetEvaluator():
     """
     COCO AP Evaluation class.
     All the data in the val2017 dataset are processed \
@@ -37,7 +37,7 @@ class PlateDatasetEvaluator():
         self.ap50_95 = 0.
         self.ap50 = 0.
         # ----------------- Dataset -----------------
-        self.dataset = PlateDetection(data_dir=data_dir, image_set=image_set)
+        self.dataset = MyCOCO(data_dir=data_dir, image_set=image_set)
 
 
     @torch.no_grad()

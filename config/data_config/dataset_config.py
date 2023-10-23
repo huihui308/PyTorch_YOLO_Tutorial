@@ -42,6 +42,14 @@ dataset_cfg = {
         'class_indexs': None,
         'class_names': ('s', 'd', ),
     },
+    'traffic11':{
+        'data_name': '',
+        'num_classes': 11,
+        'class_indexs': None,
+        'class_names': ('person', 'bicycle', 'motor', 'tricycle', 
+                        'car', 'bus', 'truck', 'plate', 
+                        'R', 'G', 'Y', ),
+    },
 
     'ourdataset':{
         'data_name': 'AnimalDataset',
