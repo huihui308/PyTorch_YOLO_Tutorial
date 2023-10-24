@@ -1,14 +1,25 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import os
+"""
+python3 inference_track.py  --mode video \
+                            --path_to_vid ./test.mp4 \
+                            -size 640 \
+                            --num_classes 11 \
+                            --model rtcdet_x \
+                            -tk byte_tracker \
+                            --weight /home/david/code/paper/PyTorch_YOLO_Tutorial/weights/traffic11/rtcdet_x/rtcdet_x_bs4_best_2023-10-24_15-23-46.pth \
+                            --path_to_save ./ \
+                            --gif
+"""
 import cv2
-import time
 import imageio
 import argparse
 import numpy as np
+import os, sys, time
 
 import torch
 
+sys.path.append('../../')
 from dataset.build import build_transform
 from utils.vis_tools import plot_tracking
 from utils.misc import load_weight
@@ -18,6 +29,7 @@ from config import build_model_config, build_trans_config
 
 from models.detectors import build_model
 from models.trackers import build_tracker
+
 
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 IMAGE_EXT = [".jpg", ".jpeg", ".webp", ".bmp", ".png"]
@@ -82,6 +94,8 @@ def parse_args():
                         help='topk candidates for testing')
     parser.add_argument('-fcb', '--fuse_conv_bn', action='store_true', default=False,
                         help='fuse Conv & BN')
+    parser.add_argument('--nms_class_agnostic', action='store_true', default=False,
+                        help='Perform NMS operations regardless of category.')
 
     return parser.parse_args()
 
@@ -206,92 +220,91 @@ def run(args,
 
     # ------------------------- Video ---------------------------
     elif args.mode == 'video':
-        # read a video
+        print("read a video")
         video = cv2.VideoCapture(args.path_to_vid)
         fps = video.get(cv2.CAP_PROP_FPS)
-        
+        video_width = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
+        video_height = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        frame_cnt = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+        print(fps, video_width, video_height, frame_cnt)
         # For saving
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
-        save_size = (640, 480)
-        cur_time = time.strftime('%Y-%m-%d-%H-%M-%S',time.localtime(time.time()))
-        save_video_name = os.path.join(save_path, cur_time+'.avi')
+        save_size = (video_width, video_height)
+        cur_time = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
+        save_video_name = os.path.join(save_path, cur_time + '.mp4')
         out = cv2.VideoWriter(save_video_name, fourcc, fps, save_size)
         print(save_video_name)
         image_list = []
-
         # start tracking
         frame_id = 0
         results = []
+        """
         while(True):
             ret, frame = video.read()
-            
-            if ret:
-                # ------------------------- Detection ---------------------------
-                # preprocess
-                x, _, deltas = transform(frame)
-                x = x.unsqueeze(0).to(device) / 255.
-                orig_h, orig_w, _ = frame.shape
-
-                # detect
-                t0 = time.time()
-                bboxes, scores, labels = detector(x)
-                print("=============== Frame-{} ================".format(frame_id))
-                print("detect time: {:.1f} ms".format((time.time() - t0)*1000))
-
-                # rescale bboxes
-                origin_img_size = [orig_h, orig_w]
-                cur_img_size = [*x.shape[-2:]]
-                bboxes = rescale_bboxes(bboxes, origin_img_size, cur_img_size, deltas)
-
-                # track
-                t2 = time.time()
-                if len(bboxes) > 0:
-                    online_targets = tracker.update(scores, bboxes, labels)
-                    online_xywhs = []
-                    online_ids = []
-                    online_scores = []
-                    for t in online_targets:
-                        xywh = t.xywh
-                        tid = t.track_id
-                        vertical = xywh[2] / xywh[3] > args.aspect_ratio_thresh
-                        if xywh[2] * xywh[3] > args.min_box_area and not vertical:
-                            online_xywhs.append(xywh)
-                            online_ids.append(tid)
-                            online_scores.append(t.score)
-                            results.append(
-                                f"{frame_id},{tid},{xywh[0]:.2f},{xywh[1]:.2f},{xywh[2]:.2f},{xywh[3]:.2f},{t.score:.2f},-1,-1,-1\n"
-                                )
-                    print("tracking time: {:.1f} ms".format((time.time() - t2)*1000))
-                    
-                    # plot tracking results
-                    online_im = plot_tracking(
-                        frame, online_xywhs, online_ids, frame_id=frame_id + 1, fps=1. / (time.time() - t0)
-                    )
-                else:
-                    online_im = frame
-
-                frame_resized = cv2.resize(online_im, save_size)
-                out.write(frame_resized)
-
-                if args.gif:
-                    gif_resized = cv2.resize(online_im, (640, 480))
-                    gif_resized_rgb = gif_resized[..., (2, 1, 0)]
-                    image_list.append(gif_resized_rgb)
-
-                # show results
-                if args.show:
-                    cv2.imshow('tracking', online_im)
-                    ch = cv2.waitKey(1)
-                    if ch == 27 or ch == ord("q") or ch == ord("Q"):
-                        break
-            else:
+            if not ret:
                 break
-            frame_id += 1
+            # ------------------------- Detection ---------------------------
+            # preprocess
+            x, _, deltas = transform(frame)
+            x = x.unsqueeze(0).to(device) / 255.
+            orig_h, orig_w, _ = frame.shape
 
+            # detect
+            t0 = time.time()
+            bboxes, scores, labels = detector(x)
+            print("=============== Frame-{} ================".format(frame_id))
+            print("detect time: {:.1f} ms".format((time.time() - t0)*1000))
+
+            # rescale bboxes
+            origin_img_size = [orig_h, orig_w]
+            cur_img_size = [*x.shape[-2:]]
+            bboxes = rescale_bboxes(bboxes, origin_img_size, cur_img_size, deltas)
+
+            # track
+            t2 = time.time()
+            if len(bboxes) > 0:
+                online_targets = tracker.update(scores, bboxes, labels)
+                online_xywhs = []
+                online_ids = []
+                online_scores = []
+                for t in online_targets:
+                    xywh = t.xywh
+                    tid = t.track_id
+                    vertical = xywh[2] / xywh[3] > args.aspect_ratio_thresh
+                    if xywh[2] * xywh[3] > args.min_box_area and not vertical:
+                        online_xywhs.append(xywh)
+                        online_ids.append(tid)
+                        online_scores.append(t.score)
+                        results.append(
+                            f"{frame_id},{tid},{xywh[0]:.2f},{xywh[1]:.2f},{xywh[2]:.2f},{xywh[3]:.2f},{t.score:.2f},-1,-1,-1\n"
+                            )
+                print("tracking time: {:.1f} ms".format((time.time() - t2)*1000))
+                
+                # plot tracking results
+                online_im = plot_tracking(
+                    frame, online_xywhs, online_ids, frame_id=frame_id + 1, fps=1. / (time.time() - t0)
+                )
+            else:
+                online_im = frame
+
+            frame_resized = cv2.resize(online_im, save_size)
+            out.write(frame_resized)
+
+            if args.gif:
+                gif_resized = cv2.resize(online_im, (640, 480))
+                gif_resized_rgb = gif_resized[..., (2, 1, 0)]
+                image_list.append(gif_resized_rgb)
+            # show results
+            if args.show:
+                cv2.imshow('tracking', online_im)
+                ch = cv2.waitKey(1)
+                if ch == 27 or ch == ord("q") or ch == ord("Q"):
+                    break
+            frame_id += 1
+        """
         video.release()
         out.release()
         cv2.destroyAllWindows()
-
         # generate GIF
         if args.gif:
             save_gif_path =  os.path.join(save_path, 'gif_files')
@@ -300,7 +313,6 @@ def run(args,
             print('generating GIF ...')
             imageio.mimsave(save_gif_name, image_list, fps=fps)
             print('GIF done: {}'.format(save_gif_name))
-
     # ------------------------- Image ----------------------------
     elif args.mode == 'image':
         files = get_image_list(args.path_to_img)
@@ -392,6 +404,7 @@ def run(args,
             print('generating GIF ...')
             imageio.mimsave(save_gif_name, image_list, fps=fps)
             print('GIF done: {}'.format(save_gif_name))
+    return
 
 
 if __name__ == '__main__':
@@ -410,7 +423,7 @@ if __name__ == '__main__':
     trans_cfg = build_trans_config(model_cfg['trans_type'])
 
     # transform
-    transform = build_transform(args.img_size, trans_cfg, is_train=False)
+    transform = build_transform(args, trans_cfg, is_train=False)
 
     # ---------------------- General Object Detector ----------------------
     detector = build_model(args, model_cfg, device, args.num_classes, False)
