@@ -19,7 +19,6 @@ import os, sys, time
 
 import torch
 
-sys.path.append('../../')
 from dataset.build import build_transform
 from utils.vis_tools import plot_tracking
 from utils.misc import load_weight
@@ -109,6 +108,106 @@ def get_image_list(path):
             if ext in IMAGE_EXT:
                 image_names.append(apath)
     return image_names
+
+
+def parse_video_file(args,
+        tracker,
+        detector,
+        device, 
+        transform,
+        save_path)->None:
+    print("read a video")
+    video = cv2.VideoCapture(args.path_to_vid)
+    fps = video.get(cv2.CAP_PROP_FPS)
+    video_width = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
+    video_height = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    frame_cnt = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+    print(fps, video_width, video_height, frame_cnt)
+    # For saving
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    save_size = (video_width, video_height)
+    cur_time = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
+    save_video_name = os.path.join(save_path, cur_time + '.mp4')
+    out = cv2.VideoWriter(save_video_name, fourcc, fps, save_size)
+    print(save_video_name)
+    image_list = []
+    # start tracking
+    frame_id = 0
+    results = []
+    while True:
+        ret, frame = video.read()
+        if not ret:
+            break
+        # ------------------------- Detection ---------------------------
+        # preprocess
+        x, _, deltas = transform(frame)
+        x = x.unsqueeze(0).to(device) / 255.
+        orig_h, orig_w, _ = frame.shape
+        # detect
+        t0 = time.time()
+        bboxes, scores, labels = detector(x)
+        print("=============== Frame-{} ================".format(frame_id))
+        print("detect time: {:.1f} ms".format((time.time() - t0)*1000))
+        # rescale bboxes
+        origin_img_size = [orig_h, orig_w]
+        cur_img_size = [*x.shape[-2:]]
+        bboxes = rescale_bboxes(bboxes, origin_img_size, cur_img_size, deltas)
+        # track
+        t2 = time.time()
+        if len(bboxes) > 0:
+            online_targets = tracker.update(scores, bboxes, labels)
+            online_xywhs = []
+            online_ids = []
+            online_scores = []
+            for t in online_targets:
+                xywh = t.xywh
+                tid = t.track_id
+                vertical = xywh[2] / xywh[3] > args.aspect_ratio_thresh
+                if xywh[2] * xywh[3] > args.min_box_area and not vertical:
+                    online_xywhs.append(xywh)
+                    online_ids.append(tid)
+                    online_scores.append(t.score)
+                    results.append(
+                        f"{frame_id},{tid},{xywh[0]:.2f},{xywh[1]:.2f},{xywh[2]:.2f},{xywh[3]:.2f},{t.score:.2f},-1,-1,-1\n"
+                        )
+            print("tracking time: {:.1f} ms".format((time.time() - t2)*1000))
+            # plot tracking results
+            online_im = plot_tracking(
+                frame, online_xywhs, online_ids, frame_id=frame_id + 1, fps=1. / (time.time() - t0)
+            )
+        else:
+            online_im = frame
+
+        frame_resized = cv2.resize(online_im, save_size)
+        out.write(frame_resized)
+
+        if args.gif:
+            gif_resized = cv2.resize(online_im, (640, 480))
+            gif_resized_rgb = gif_resized[..., (2, 1, 0)]
+            image_list.append(gif_resized_rgb)
+        # show results
+        if args.show:
+            cv2.imshow('tracking', online_im)
+            ch = cv2.waitKey(1)
+            if ch == 27 or ch == ord("q") or ch == ord("Q"):
+                break
+        frame_id += 1
+        if frame_id == 100:
+            break
+        """
+        """
+    video.release()
+    out.release()
+    cv2.destroyAllWindows()
+    # generate GIF
+    if args.gif:
+        save_gif_path =  os.path.join(save_path, 'gif_files')
+        os.makedirs(save_gif_path, exist_ok=True)
+        save_gif_name = os.path.join(save_gif_path, '{}.gif'.format(cur_time))
+        print('generating GIF ...')
+        imageio.mimsave(save_gif_name, image_list, fps=fps)
+        print('GIF done: {}'.format(save_gif_name))
+    return
 
 
 def run(args,
@@ -220,99 +319,7 @@ def run(args,
 
     # ------------------------- Video ---------------------------
     elif args.mode == 'video':
-        print("read a video")
-        video = cv2.VideoCapture(args.path_to_vid)
-        fps = video.get(cv2.CAP_PROP_FPS)
-        video_width = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
-        video_height = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        frame_cnt = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-        print(fps, video_width, video_height, frame_cnt)
-        # For saving
-        fourcc = cv2.VideoWriter_fourcc(*'XVID')
-        save_size = (video_width, video_height)
-        cur_time = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
-        save_video_name = os.path.join(save_path, cur_time + '.mp4')
-        out = cv2.VideoWriter(save_video_name, fourcc, fps, save_size)
-        print(save_video_name)
-        image_list = []
-        # start tracking
-        frame_id = 0
-        results = []
-        """
-        while(True):
-            ret, frame = video.read()
-            if not ret:
-                break
-            # ------------------------- Detection ---------------------------
-            # preprocess
-            x, _, deltas = transform(frame)
-            x = x.unsqueeze(0).to(device) / 255.
-            orig_h, orig_w, _ = frame.shape
-
-            # detect
-            t0 = time.time()
-            bboxes, scores, labels = detector(x)
-            print("=============== Frame-{} ================".format(frame_id))
-            print("detect time: {:.1f} ms".format((time.time() - t0)*1000))
-
-            # rescale bboxes
-            origin_img_size = [orig_h, orig_w]
-            cur_img_size = [*x.shape[-2:]]
-            bboxes = rescale_bboxes(bboxes, origin_img_size, cur_img_size, deltas)
-
-            # track
-            t2 = time.time()
-            if len(bboxes) > 0:
-                online_targets = tracker.update(scores, bboxes, labels)
-                online_xywhs = []
-                online_ids = []
-                online_scores = []
-                for t in online_targets:
-                    xywh = t.xywh
-                    tid = t.track_id
-                    vertical = xywh[2] / xywh[3] > args.aspect_ratio_thresh
-                    if xywh[2] * xywh[3] > args.min_box_area and not vertical:
-                        online_xywhs.append(xywh)
-                        online_ids.append(tid)
-                        online_scores.append(t.score)
-                        results.append(
-                            f"{frame_id},{tid},{xywh[0]:.2f},{xywh[1]:.2f},{xywh[2]:.2f},{xywh[3]:.2f},{t.score:.2f},-1,-1,-1\n"
-                            )
-                print("tracking time: {:.1f} ms".format((time.time() - t2)*1000))
-                
-                # plot tracking results
-                online_im = plot_tracking(
-                    frame, online_xywhs, online_ids, frame_id=frame_id + 1, fps=1. / (time.time() - t0)
-                )
-            else:
-                online_im = frame
-
-            frame_resized = cv2.resize(online_im, save_size)
-            out.write(frame_resized)
-
-            if args.gif:
-                gif_resized = cv2.resize(online_im, (640, 480))
-                gif_resized_rgb = gif_resized[..., (2, 1, 0)]
-                image_list.append(gif_resized_rgb)
-            # show results
-            if args.show:
-                cv2.imshow('tracking', online_im)
-                ch = cv2.waitKey(1)
-                if ch == 27 or ch == ord("q") or ch == ord("Q"):
-                    break
-            frame_id += 1
-        """
-        video.release()
-        out.release()
-        cv2.destroyAllWindows()
-        # generate GIF
-        if args.gif:
-            save_gif_path =  os.path.join(save_path, 'gif_files')
-            os.makedirs(save_gif_path, exist_ok=True)
-            save_gif_name = os.path.join(save_gif_path, '{}.gif'.format(cur_time))
-            print('generating GIF ...')
-            imageio.mimsave(save_gif_name, image_list, fps=fps)
-            print('GIF done: {}'.format(save_gif_name))
+        parse_video_file(args, tracker, detector, device, transform, save_path)
     # ------------------------- Image ----------------------------
     elif args.mode == 'image':
         files = get_image_list(args.path_to_img)
@@ -414,6 +421,7 @@ if __name__ == '__main__':
         print('use cuda')
         device = torch.device("cuda")
     else:
+        print('use cpu')
         device = torch.device("cpu")
 
     np.random.seed(0)
@@ -423,7 +431,7 @@ if __name__ == '__main__':
     trans_cfg = build_trans_config(model_cfg['trans_type'])
 
     # transform
-    transform = build_transform(args, trans_cfg, is_train=False)
+    (transform, _) = build_transform(args, trans_cfg, is_train=False)
 
     # ---------------------- General Object Detector ----------------------
     detector = build_model(args, model_cfg, device, args.num_classes, False)
@@ -441,3 +449,4 @@ if __name__ == '__main__':
         detector=detector, 
         device=device,
         transform=transform)
+    return
