@@ -41,9 +41,11 @@ class KalmanFilter(object):
         ndim, dt = 4, 1.
 
         # Create Kalman filter model matrices.
+        # _motion_mat-->F
         self._motion_mat = np.eye(2 * ndim, 2 * ndim)
         for i in range(ndim):
             self._motion_mat[i, ndim + i] = dt
+        # _update_mat-->H
         self._update_mat = np.eye(ndim, 2 * ndim)
 
         # Motion and observation uncertainty are chosen relative to the current
@@ -117,6 +119,7 @@ class KalmanFilter(object):
             self._std_weight_velocity * mean[3],
             1e-5,
             self._std_weight_velocity * mean[3]]
+        # motion_cov-->Q
         motion_cov = np.diag(np.square(np.r_[std_pos, std_vel]))
 
         #mean = np.dot(self._motion_mat, mean)
@@ -149,11 +152,13 @@ class KalmanFilter(object):
             self._std_weight_position * mean[3],
             1e-1,
             self._std_weight_position * mean[3]]
+        # innovation_cov-->R
         innovation_cov = np.diag(np.square(std))
 
         mean = np.dot(self._update_mat, mean)
         covariance = np.linalg.multi_dot((
             self._update_mat, covariance, self._update_mat.T))
+        # (covariance + innovation_cov)-->S=H*Pt*H.t + R
         return mean, covariance + innovation_cov
 
 

@@ -2,13 +2,14 @@
 # -*- coding: utf-8 -*-
 """
 python3 inference_track.py  --mode video \
-                            --path_to_vid ./test.mp4 \
+                            --path_to_vid ./deployment/deepstream/test.mp4 \
                             -size 640 \
                             --num_classes 11 \
                             --model rtcdet_x \
                             -tk byte_tracker \
                             --weight /home/david/code/paper/PyTorch_YOLO_Tutorial/weights/traffic11/rtcdet_x/rtcdet_x_bs4_best_2023-10-24_15-23-46.pth \
                             --path_to_save ./ \
+                            --cuda \
                             --gif
 """
 import cv2
@@ -192,10 +193,6 @@ def parse_video_file(args,
             if ch == 27 or ch == ord("q") or ch == ord("Q"):
                 break
         frame_id += 1
-        if frame_id == 100:
-            break
-        """
-        """
     video.release()
     out.release()
     cv2.destroyAllWindows()
@@ -449,4 +446,3 @@ if __name__ == '__main__':
         detector=detector, 
         device=device,
         transform=transform)
-    return

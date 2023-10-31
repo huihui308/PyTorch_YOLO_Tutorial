@@ -1,8 +1,16 @@
-"""Plate Dataset Classes
+"""MyCOCO Dataset Classes
 
-    Convert labeme json to COCO:
-        $ pip3 install -U labelme2coco -i https://pypi.tuna.tsinghua.edu.cn/simple
-        $ labelme2coco ./echo_park --train_split_rate 0.8
+    $ python3 mycoco.py --class_type=class11
+
+If the images and json files in the same directory, you must execute following command.
+    $ python3 split_labelme2images_labesl.py --data_dir=./../echo_park --save_dir=./
+    Then it will create train and val directory. In each directory, there are images and labels directory.
+
+You must walk train and val directory and execute labelme2coco.py
+    In train directory, copy classes.txt to current directory:
+    $ python3 labelme2coco.py --root_dir=./ --labelme_dir=./ --save_path=./train.json
+    In val directory, copy classes.txt to current directory:
+    $ python3 labelme2coco.py --root_dir=./ --labelme_dir=./ --save_path=./val.json
 
 Updated by: David
 """
@@ -248,8 +256,14 @@ if __name__ == "__main__":
                         help='mixup augmentation.')
     parser.add_argument('--load_cache', action="store_true", default=False,
                         help='load cached data.')
-    
+    parser.add_argument('--class_type', default="class11", type=str, 
+                        help='class type, such as class11, palte')
+
     args = parser.parse_args()
+    if args.class_type == "plate":
+        class_type = PLATE_CLASSES
+    else:
+        class_type = TRAFFIC11_CLASSES
 
     trans_config = {
         'aug_type': 'yolov5',  # optional: ssd, yolov5
@@ -264,7 +278,7 @@ if __name__ == "__main__":
         'hsv_v': 0.4,
         # Mosaic & Mixup
         'mosaic_prob': 1.0,
-        'mixup_prob': 1.0,
+        'mixup_prob': 0.1,
         'mosaic_type': 'yolov5_mosaic',
         'mixup_type': 'yolov5_mixup',
         'mixup_scale': [0.5, 1.5]
@@ -272,7 +286,7 @@ if __name__ == "__main__":
 
     transform, trans_cfg = build_transform(args, trans_config, 32, args.is_train)
 
-    dataset = Traffic11(
+    dataset = MyCOCO(
         img_size=args.img_size,
         data_dir=args.root,
         image_set=args.split,
@@ -290,7 +304,7 @@ if __name__ == "__main__":
 
     for i in range(30):
         image, target, deltas = dataset.pull_item(i)
-        print(target, deltas)
+        #print(target, deltas)
         # to numpy
         image = image.permute(1, 2, 0).numpy()
         image = image.astype(np.uint8)
@@ -305,7 +319,7 @@ if __name__ == "__main__":
             cls_id = int(label)
             color = class_colors[cls_id]
             # class name
-            label = PLATE_CLASSES[cls_id]
+            label = class_type[cls_id]
             if x2 - x1 > 0. and y2 - y1 > 0.:
                 # draw bbox
                 image = cv2.rectangle(image, (int(x1), int(y1)), (int(x2), int(y2)), color, 2)
